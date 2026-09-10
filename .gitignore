@@ -1,0 +1,15 @@
+node_modules/
+.pnpm-store/
+main.js
+*.js.map
+storybook-static/
+release/
+coverage/
+dist/
+.obsidian-cache/
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+.scratch/
+.impeccable/review

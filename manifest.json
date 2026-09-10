@@ -1,0 +1,9 @@
+{
+  "id": "focus-flow",
+  "name": "Focus Flow",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.0",
+  "description": "Run a personal work-management workflow from Markdown notes.",
+  "author": "Focus Flow contributors",
+  "isDesktopOnly": false
+}

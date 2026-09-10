@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-07T02:01:12.000Z",
+  "title": "Design System: Focus Flow",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Restrained Indigo", "canonical": "#5b5bd6", "tonalRamp": ["#17134d", "#28217a", "#3930a1", "#4a48bf", "#5b5bd6", "#7777e3", "#9898ee", "#c6c6f8"] },
+      "primary-hover": { "role": "primary", "displayName": "Deep Indigo", "canonical": "#4646bc", "tonalRamp": ["#11103d", "#201d64", "#302b8a", "#3c3aa4", "#4646bc", "#6868d1", "#8a8ae3", "#bdbdf3"] },
+      "neutral-bg": { "role": "neutral", "displayName": "White Workspace", "canonical": "#ffffff", "tonalRamp": ["#1a1b1e", "#303238", "#494c54", "#666a74", "#858a96", "#aeb2ba", "#d2d5da", "#ffffff"] },
+      "neutral-surface": { "role": "neutral", "displayName": "White Surface", "canonical": "#ffffff", "tonalRamp": ["#1a1b1e", "#303238", "#494c54", "#666a74", "#858a96", "#aeb2ba", "#d2d5da", "#ffffff"] },
+      "neutral-subtle": { "role": "neutral", "displayName": "Cool Mist", "canonical": "#f5f6f8", "tonalRamp": ["#1a1b1e", "#303238", "#494c54", "#666a74", "#858a96", "#aeb2ba", "#d2d5da", "#f5f6f8"] },
+      "neutral-hover": { "role": "neutral", "displayName": "Soft Hover", "canonical": "#e9ebf1", "tonalRamp": ["#1a1b1e", "#303238", "#494c54", "#666a74", "#858a96", "#aeb2ba", "#d2d5da", "#e9ebf1"] },
+      "neutral-border": { "role": "neutral", "displayName": "Quiet Border", "canonical": "#d9dde5", "tonalRamp": ["#1a1b1e", "#303238", "#494c54", "#666a74", "#858a96", "#aeb2ba", "#d2d5da", "#d9dde5"] },
+      "neutral-border-hover": { "role": "neutral", "displayName": "Raised Border", "canonical": "#c4cad5", "tonalRamp": ["#1a1b1e", "#303238", "#494c54", "#666a74", "#858a96", "#aeb2ba", "#c4cad5", "#e4e6ea"] },
+      "neutral-border-focus": { "role": "neutral", "displayName": "Focus Border", "canonical": "#aeb5c1", "tonalRamp": ["#1a1b1e", "#303238", "#494c54", "#666a74", "#858a96", "#aeb5c1", "#cdd0d6", "#eef0f3"] },
+      "text": { "role": "neutral", "displayName": "Slate Ink", "canonical": "#1d2939", "tonalRamp": ["#10151d", "#1d2939", "#2e3d51", "#405269", "#5a6b80", "#77879a", "#a3afbd", "#dfe4ea"] },
+      "muted-text": { "role": "neutral", "displayName": "Muted Slate", "canonical": "#475467", "tonalRamp": ["#171c24", "#2a3442", "#3c495a", "#475467", "#667589", "#8794a5", "#b0bac6", "#e7eaee"] },
+      "quiet-text": { "role": "neutral", "displayName": "Quiet Slate", "canonical": "#5b6574", "tonalRamp": ["#1b2028", "#303945", "#46515f", "#5b6574", "#77818f", "#969faa", "#bcc3cb", "#eaedf0"] },
+      "text-on-accent": { "role": "neutral", "displayName": "White on Accent", "canonical": "#ffffff", "tonalRamp": ["#1a1b1e", "#303238", "#494c54", "#666a74", "#858a96", "#aeb2ba", "#d2d5da", "#ffffff"] },
+      "danger": { "role": "semantic", "displayName": "Danger Red", "canonical": "#b42318", "tonalRamp": ["#3c0c08", "#63120d", "#861a12", "#a32118", "#b42318", "#c94a40", "#df8178", "#f4cfcb"] },
+      "warning": { "role": "semantic", "displayName": "Warning Amber", "canonical": "#b54708", "tonalRamp": ["#3c1802", "#622a04", "#873a06", "#a54807", "#b54708", "#cc6c2e", "#e19b6d", "#f5d7c3"] },
+      "success": { "role": "semantic", "displayName": "Success Green", "canonical": "#087443", "tonalRamp": ["#012719", "#03432a", "#065d37", "#087443", "#299765", "#5bb58c", "#91d1b0", "#d3f0e1"] }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Body", "purpose": "Everyday workspace copy and controls." },
+      "headline": { "displayName": "Headline", "purpose": "Page and Sprint headings." },
+      "title": { "displayName": "Title", "purpose": "Work titles and row identities." },
+      "label": { "displayName": "Label", "purpose": "Section labels, status controls, and supporting UI text." },
+      "mono": { "displayName": "Mono", "purpose": "Human keys, compact counts, and technical paths." }
+    },
+    "shadows": [
+      { "name": "drag-lift", "value": "0 4px 14px rgb(0 0 0 / 14%)", "purpose": "Temporary feedback while a work item is dragged." },
+      { "name": "popover-lift", "value": "0 8px 36px rgb(0 0 0 / 22%)", "purpose": "Action menus and searchable pickers above the workspace." },
+      { "name": "dialog-lift", "value": "0 24px 80px color-mix(in srgb, black 30%, transparent)", "purpose": "Focused dialogs over the modal backdrop." }
+    ],
+    "motion": [
+      { "name": "unfold", "value": "160ms ease-out", "purpose": "Compact reveal for dialogs, menus, and row details." },
+      { "name": "control-state", "value": "160ms ease-out", "purpose": "Background and border transitions for controls." },
+      { "name": "reduced-motion", "value": "0.01ms", "purpose": "Accessibility override under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "narrow", "value": "380px" },
+      { "name": "mobile", "value": "480px" },
+      { "name": "compact", "value": "620px" },
+      { "name": "panel", "value": "700px" },
+      { "name": "wide-panel", "value": "800px" },
+      { "name": "report-wide", "value": "900px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The committed action in a focused workflow or dialog.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Add to Sprint</button>",
+      "css": ".ds-btn-primary { align-items: center; background: var(--ff-accent, #5b5bd6); border: 1px solid transparent; border-radius: 7px; color: var(--ff-text-on-accent, #fff); display: inline-flex; font: 600 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; justify-content: center; min-height: 2rem; padding: .3rem .75rem; transition: background-color 160ms ease-out, border-color 160ms ease-out; } .ds-btn-primary:hover { background: var(--ff-accent-hover, #4646bc); } .ds-btn-primary:focus-visible { outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "A low-emphasis action for navigation, row tools, and secondary choices.",
+      "html": "<button class=\"ds-btn-quiet\" type=\"button\">Change…</button>",
+      "css": ".ds-btn-quiet { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 7px; color: var(--ff-muted, #475467); display: inline-flex; font: 600 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; min-height: 2rem; padding: .3rem .75rem; transition: background-color 160ms ease-out, border-color 160ms ease-out; } .ds-btn-quiet:hover { background: var(--ff-hover, #e9ebf1); color: var(--ff-text, #1d2939); } .ds-btn-quiet:focus-visible { outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "text-field",
+      "description": "A compact surface field for capture, search, and focused Markdown editors.",
+      "html": "<label class=\"ds-field\"><span>Candidate title</span><input class=\"ds-input\" type=\"text\" placeholder=\"Capture a thought…\"></label>",
+      "css": ".ds-field { color: var(--ff-muted, #475467); display: grid; font: 600 12px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; gap: .5rem; } .ds-input { background: var(--ff-input-background, #fff); border: 1px solid var(--ff-border, #d9dde5); border-radius: 7px; color: var(--ff-text, #1d2939); font: 400 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; min-height: 2rem; padding: .3rem .6rem; transition: background-color 160ms ease-out, border-color 160ms ease-out; } .ds-input:hover { border-color: var(--ff-border-hover, #c4cad5); } .ds-input:focus { border-color: var(--ff-border-focus, #aeb5c1); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ff-border-focus, #aeb5c1) 45%, transparent); outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Navigation Tabs",
+      "kind": "nav",
+      "refersTo": "nav-tab",
+      "description": "The four compact destinations across the workspace header; close-step labels wrap when space is tight.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Focus Flow pages\"><button class=\"ds-nav-tab\" aria-current=\"page\" type=\"button\">Focus</button><button class=\"ds-nav-tab\" type=\"button\">Plan</button><button class=\"ds-nav-tab\" type=\"button\">Inbox</button><button class=\"ds-nav-tab\" type=\"button\">History</button></nav>",
+      "css": ".ds-nav { align-items: center; display: flex; gap: .2rem; } .ds-nav-tab { background: transparent; border: 0; border-radius: 7px; color: var(--ff-muted, #475467); font: 550 12px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; padding: .45rem .7rem; transition: background-color 160ms ease-out, color 160ms ease-out; } .ds-nav-tab:hover { background: var(--ff-hover, #e9ebf1); color: var(--ff-text, #1d2939); } .ds-nav-tab[aria-current=\"page\"] { background: color-mix(in srgb, var(--ff-accent, #5b5bd6) 10%, transparent); color: var(--ff-accent, #5b5bd6); } .ds-nav-tab:focus-visible { outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Tag Chip",
+      "kind": "chip",
+      "refersTo": "tag-chip",
+      "description": "A compact tag or removable filter condition; catalog colors use an inset stroke so the chip never changes size.",
+      "html": "<button class=\"ds-tag-chip ds-tag-chip--colored\" style=\"--ds-tag-color: #6750A4\" aria-pressed=\"true\" type=\"button\">#planning</button>",
+      "css": ".ds-tag-chip { background: var(--ff-hover, #e9ebf1); border: 0; border-radius: 999px; color: var(--ff-muted, #475467); font: 400 10px/1 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; padding: .32rem .5rem; transition: background-color 160ms ease-out, color 160ms ease-out; } .ds-tag-chip--colored { background: color-mix(in srgb, var(--ds-tag-color) 14%, var(--ff-background, #fff)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-tag-color) 50%, var(--ff-border, #d9dde5)); color: var(--ff-text, #1d2939); } .ds-tag-chip:hover { background: var(--ff-accent-soft, color-mix(in srgb, #5b5bd6 10%, transparent)); } .ds-tag-chip[aria-pressed=\"true\"] { color: var(--ff-accent, #5b5bd6); } .ds-tag-chip:focus-visible { outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Focus Task Card",
+      "kind": "card",
+      "refersTo": "task-card",
+      "description": "A flat, bordered Task card nested inside a Story swimlane.",
+      "html": "<article class=\"ds-task-card\"><span class=\"ds-task-key\">FF-43</span><button class=\"ds-task-title\" type=\"button\">Verify the mobile flow</button><button class=\"ds-task-menu\" aria-label=\"Task actions\" type=\"button\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><circle cx=\"3\" cy=\"8\" r=\"1\"/><circle cx=\"8\" cy=\"8\" r=\"1\"/><circle cx=\"13\" cy=\"8\" r=\"1\"/></svg></button></article>",
+      "css": ".ds-task-card { align-items: start; background: var(--ff-surface, #fff); border: 1px solid var(--ff-line, color-mix(in srgb, #1d2939 13%, transparent)); border-radius: 7px; display: grid; gap: .4rem; grid-template-columns: 1fr auto; padding: .65rem .4rem; } .ds-task-key { color: var(--ff-muted, #475467); font: 400 10px/1.5 ui-monospace, SFMono-Regular, monospace; grid-column: 1 / -1; } .ds-task-title { background: transparent; border: 0; color: var(--ff-text, #1d2939); font: 500 14px/1.25 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; padding: 0; text-align: left; } .ds-task-title:hover { color: var(--ff-accent, #5b5bd6); } .ds-task-menu { align-items: center; background: transparent; border: 0; color: var(--ff-muted, #475467); display: inline-flex; height: 2rem; justify-content: center; padding: 0; width: 2rem; } .ds-task-menu svg { fill: currentColor; height: 1rem; width: 1rem; } .ds-task-menu:hover { background: var(--ff-hover, #e9ebf1); } .ds-task-title:focus-visible, .ds-task-menu:focus-visible { outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; }"
+    },
+    {
+      "name": "Focused Dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "A focused editor for Task creation, policy changes, or folder selection.",
+      "html": "<div class=\"ds-dialog-backdrop\"><section class=\"ds-dialog\" role=\"dialog\" aria-label=\"New Task\"><header class=\"ds-dialog-header\"><div><h2>New Task</h2><p>FF-42 · Make the weekly review understandable</p></div><button class=\"ds-dialog-close\" aria-label=\"Close dialog\" type=\"button\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M3 3l10 10M13 3L3 13\"/></svg></button></header><label class=\"ds-field\"><span>Task title</span><input class=\"ds-input\" type=\"text\" value=\"Verify the boundary\"></label><footer class=\"ds-dialog-actions\"><button class=\"ds-btn-quiet\" type=\"button\">Cancel</button><button class=\"ds-btn-primary\" type=\"button\">Add Task</button></footer></section></div>",
+      "css": ".ds-dialog-backdrop { align-items: center; background: color-mix(in srgb, black 38%, transparent); display: flex; inset: 0; justify-content: center; padding: 1rem; position: fixed; } .ds-dialog { animation: ds-unfold 160ms ease-out; background: var(--ff-background, #fff); border: 1px solid var(--ff-line-strong, color-mix(in srgb, #1d2939 24%, transparent)); border-radius: .9rem; box-shadow: 0 24px 80px color-mix(in srgb, black 30%, transparent); color: var(--ff-text, #1d2939); max-width: 30rem; padding: 1.35rem; width: 100%; } .ds-dialog-header { align-items: start; display: grid; gap: .75rem; grid-template-columns: minmax(0, 1fr) 2rem; margin-bottom: 1rem; } .ds-dialog-header h2 { font: 650 1.45rem/1.12 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; letter-spacing: -.035em; margin: 0; } .ds-dialog-header p { color: var(--ff-muted, #475467); font: 400 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; margin: .4rem 0 0; } .ds-dialog-close { align-items: center; background: transparent; border: 0; border-radius: .4rem; color: var(--ff-muted, #475467); display: inline-flex; height: 2rem; justify-content: center; padding: 0; width: 2rem; } .ds-dialog-close:hover { background: var(--ff-hover, #e9ebf1); } .ds-dialog-close svg { fill: none; height: 1rem; stroke: currentColor; stroke-width: 1.5; width: 1rem; } .ds-dialog-close:focus-visible { outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; } .ds-dialog-actions { display: flex; gap: .65rem; justify-content: flex-end; margin-top: 1.25rem; } @keyframes ds-unfold { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } } @media (prefers-reduced-motion: reduce) { .ds-dialog { animation-duration: .01ms; } }"
+    },
+    {
+      "name": "History Report",
+      "kind": "custom",
+      "description": "A single selected period with visual outcomes, selectable tag units, and folded evidence.",
+      "html": "<section class=\"ds-report\"><header><div><h2>SPR-001</h2><p>What moved forward</p></div><strong>67%</strong></header><div class=\"ds-report-bar\" aria-hidden=\"true\"><span></span></div><details class=\"ds-report-detail\"><summary>Outcomes &amp; reflection</summary><p>Your review evidence stays available when you need it.</p></details></section>",
+      "css": ".ds-report { background: var(--ff-background-alt, #f5f6f8); border-radius: 10px; color: var(--ff-text, #1d2939); padding: 1.5rem; } .ds-report header { align-items: center; display: flex; gap: .75rem; justify-content: space-between; } .ds-report h2 { font: 650 1.5rem/1.12 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; letter-spacing: -.03em; margin: 0; } .ds-report p { color: var(--ff-muted, #475467); font: 400 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; margin: .35rem 0 0; } .ds-report strong { font: 600 1.65rem/1.2 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; font-variant-numeric: tabular-nums; } .ds-report-bar { background: var(--ff-border, #d9dde5); border-radius: 3px; height: 6px; margin: 1.25rem 0; overflow: hidden; } .ds-report-bar span { background: var(--ff-accent, #5b5bd6); display: block; height: 100%; width: 67%; } .ds-report-detail { border-top: 1px solid var(--ff-border, #d9dde5); padding-top: 1rem; } .ds-report-detail summary { cursor: pointer; font: 500 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; } .ds-report-detail p { margin-top: .75rem; }"
+    },
+    {
+      "name": "Markdown Body Fields",
+      "kind": "input",
+      "refersTo": "text-field",
+      "description": "Canonical multiline Markdown fields used by Candidates, Epics, Stories, and Tasks.",
+      "html": "<div class=\"ds-body-fields\"><label class=\"ds-body-field\"><span>Description <small>Markdown</small></span><textarea rows=4 placeholder=\"What should be true?\"></textarea></label><fieldset class=\"ds-criteria\"><legend>Acceptance Criteria</legend><label><input type=\"checkbox\"><textarea rows=2 placeholder=\"An observable result… · Markdown\"></textarea></label><button class=\"ds-btn-quiet\" type=\"button\">＋ Add criterion</button></fieldset></div>",
+      "css": ".ds-body-fields { color: var(--ff-text, #1d2939); display: grid; gap: 1rem; } .ds-body-field { display: grid; gap: .4rem; } .ds-body-field > span, .ds-criteria legend { color: var(--ff-muted, #475467); font: 650 12px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; } .ds-body-field small { color: var(--ff-muted, #475467); font-weight: 400; } .ds-body-field textarea, .ds-criteria textarea { background: var(--ff-input-background, #fff); border: 1px solid var(--ff-border, #d9dde5); border-radius: 7px; color: var(--ff-text, #1d2939); font: 400 14px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif; min-height: 6rem; padding: .3rem .6rem; resize: vertical; transition: border-color 160ms ease-out; } .ds-criteria { border: 0; display: grid; gap: .6rem; margin: .25rem 0; min-width: 0; padding: 0; } .ds-criteria ol { display: grid; gap: .4rem; list-style: none; margin: 0; padding: 0; } .ds-criteria label { align-items: flex-start; display: flex; gap: .4rem; } .ds-criteria label textarea { flex: 1; min-height: 3.5rem; } .ds-body-field textarea:hover, .ds-criteria textarea:hover { border-color: var(--ff-border-hover, #c4cad5); } .ds-body-field textarea:focus-visible, .ds-criteria textarea:focus-visible { outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; } .ds-criteria input { accent-color: var(--ff-accent, #5b5bd6); height: 1rem; margin-top: .65rem; width: 1rem; } .ds-criteria .ds-btn-quiet { justify-self: start; }"
+    },
+    {
+      "name": "Sprint Close Steps",
+      "kind": "nav",
+      "description": "Five icon-led close steps whose labels remain visible by wrapping on narrow panels.",
+      "html": "<nav class=\"ds-close-steps\" aria-label=\"Sprint Close progress\"><button aria-current=\"step\" type=\"button\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z\"/></svg>Overview</button><button type=\"button\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m6 12 4 4 8-9M12 3a9 9 0 1 0 9 9\"/></svg>Outcomes</button><button type=\"button\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"m3 6 1.5 1.5L7 4M11 6h10M3 12h4M11 12h10M3 18h4M11 18h10\"/></svg>Tasks</button><button type=\"button\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8l-6 3v-3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2ZM7 9h10M7 13h6\"/></svg>Retrospective</button><button type=\"button\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M6 3h9l4 4v14H6ZM14 3v5h5m-9 6 2 2 4-4\"/></svg>Review</button></nav>",
+      "css": ".ds-close-steps { display: flex; flex-wrap: wrap; gap: .25rem; margin-bottom: 1.5rem; padding: .25rem; } .ds-close-steps button { align-items: center; background: transparent; border: 0; border-radius: 7px; color: var(--ff-muted, #475467); display: flex; flex: 0 1 auto; gap: .5rem; justify-content: center; min-height: 2.75rem; padding: .65rem .85rem; white-space: nowrap; transition: background-color 180ms ease-out, color 180ms ease-out; } .ds-close-steps button:hover { background: var(--ff-background-alt, #f5f6f8); color: var(--ff-text, #1d2939); } .ds-close-steps button[aria-current=\"step\"] { background: color-mix(in srgb, var(--ff-accent, #5b5bd6) 10%, transparent); color: var(--ff-accent, #5b5bd6); } .ds-close-steps svg { fill: none; height: 18px; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; width: 18px; } .ds-close-steps button:focus-visible { outline: 2px solid var(--ff-accent, #5b5bd6); outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Deliberate Writing Workspace",
+    "overview": "Focus Flow is a writing-app workspace for deliberate work. Titles and next actions lead; forms unfold only when the decision needs them. The host interface font keeps the plugin native to Obsidian, while compact controls, flat rows, quiet dividers, and a restrained accent keep attention on the user's Markdown-backed work.\n\nThe system is intentionally theme-aware rather than a frozen brand palette. Light defaults provide the documented fallback; Obsidian dark and community themes replace the same roles with their own readable values. Responsive views preserve the same information order: Focus groups Tasks in Story swimlanes, Plan stacks its Sprint, Month shortlist, and Epic backlog queues, and History progressively discloses evidence and reflection. Portalled menus and dialogs re-enter the same `.focus-flow` boundary so host-theme isolation survives overlays.",
+    "keyCharacteristics": [
+      "Compact 14px interface density with a host-driven sans-serif stack.",
+      "Rounded 7–8px controls, flat working rows, and quiet divider hierarchy.",
+      "One restrained accent for selection, focus, and primary action.",
+      "Progressive disclosure through row details, menus, pickers, and dialogs.",
+      "A 160ms unfold motion with a reduced-motion path.",
+      "Canonical Markdown fields and separate multiline checkbox criteria in work forms."
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Use the accent for selection, focus, and an intentional action; let neutral layering carry most of the screen.", "section": "colors" },
+      { "name": "The Host Theme Rule", "body": "Treat these light values as fallbacks. Preserve the `--ff-*` role mapping so Obsidian dark and community themes can replace colors and interface font without changing component semantics.", "section": "colors" },
+      { "name": "The Native Voice Rule", "body": "Keep hierarchy in the host interface family; do not introduce a separate display face for a page heading.", "section": "typography" },
+      { "name": "The Flat-at-Rest Rule", "body": "Reserve elevation for an interaction layer or active drag; do not turn every work row into a floating card.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use the host-driven `--ff-*` roles and preserve readable light, dark, and community theme fallbacks.",
+      "Do keep titles and next actions primary, with context folded into rows, menus, details, and dialogs.",
+      "Do use quiet dividers, flat surfaces, and the restrained accent to show action, focus, and selection.",
+      "Do preserve Story grouping and menu/keyboard equivalents as panels narrow.",
+      "Do keep portalled menus and dialogs inside the same isolated token boundary.",
+      "Do honor the `160ms ease-out` reveal and disable it under `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "Don't add display mastheads, separate system display faces, or loud all-caps kickers to ordinary workspace pages.",
+      "Don't use persistent explanatory paragraphs in Plan section headers; reserve copy for contextual empty or blocked states.",
+      "Don't turn the flat workspace into a card wall or add resting shadows to buttons, inputs, or work rows.",
+      "Don't freeze a community theme's font or palette as Focus Flow's global brand identity.",
+      "Don't replace the compact searchable Story/tag pickers with wide native dropdowns or hide state behind color alone; tag suggestions overlay the form and must not change its height.",
+      "Don't make close-step labels depend on a horizontal scroller at narrow widths; let the five named steps wrap.",
+      "Don't invent approval scores, quality bars, or other decorative metrics that are not part of the frozen History evidence."
+    ]
+  }
+}

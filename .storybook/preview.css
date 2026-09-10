@@ -1,0 +1,100 @@
+/* Storybook-only canvas and host-frame chrome. Component styling belongs to
+ * styles.css so the stories and the plugin exercise the same CSS boundary. */
+html,
+body {
+  min-width: 0;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: #1d2939;
+  overflow: auto;
+}
+
+body[data-focus-flow-theme='dark'] {
+  background: #17191e;
+  color: #edf0f5;
+}
+
+body[data-focus-flow-theme='community'] {
+  background: #10201d;
+  color: #edf6f2;
+}
+
+.focus-flow-story-host {
+  min-height: 100vh;
+  background: #fff;
+  color: #1d2939;
+}
+
+.focus-flow-story-host.theme-dark {
+  background: #17191e;
+  color: #edf0f5;
+  color-scheme: dark;
+}
+
+.focus-flow-story-host--community {
+  background: #10201d;
+  color: #edf6f2;
+}
+
+.focus-flow-story-frame {
+  box-sizing: border-box;
+  container-type: inline-size;
+  width: 100%;
+}
+
+.focus-flow-story-frame--leaf {
+  margin: 0 auto;
+  max-width: 70rem;
+  padding: 1rem clamp(1rem, 4vw, 3rem) 4rem;
+}
+
+.focus-flow-story-frame--sidebar {
+  margin: 0;
+  max-width: 30rem;
+  min-height: 34rem;
+  padding: 1rem;
+}
+
+.focus-flow-story-frame--modal {
+  min-height: 34rem;
+  padding: 1rem;
+}
+
+.focus-flow-story-frame--settings {
+  margin: 0 auto;
+  max-width: 52rem;
+  padding: 1rem clamp(1rem, 4vw, 3rem) 4rem;
+}
+.focus-flow-story-modal-stage {
+  box-sizing: border-box;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.focus-flow.focus-flow-story-native-modal {
+  box-sizing: border-box;
+  width: min(560px, 100%);
+  min-width: 0;
+  min-height: 0;
+  max-height: calc(100dvh - 4rem);
+  overflow-y: auto;
+  margin: 0;
+  padding: 1.5rem;
+  border: 1px solid var(--ff-border);
+  border-radius: .75rem;
+  background: var(--ff-background);
+}
+
+.focus-flow-story-native-modal .focus-flow-story-modal-title {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
