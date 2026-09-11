@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/cli/main.ts",
+    "test/e2e/**/*.ts",
+    "test/performance/**/*.ts",
+    "scripts/**/*.mjs",
+    "esbuild*.mjs"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "test/**/*.ts",
+    ".storybook/**/*.{ts,tsx}",
+    "*.config.{ts,mts,mjs}",
+    "scripts/**/*.mjs"
+  ],
+  "ignoreDependencies": [
+    "@wdio/local-runner",
+    "@wdio/obsidian-reporter",
+    "wdio-obsidian-reporter"
+  ]
+}

@@ -1,0 +1,52 @@
+name: Supported Obsidian matrix
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app-version: '1.8.0'
+            installer-version: earliest
+          - app-version: latest
+            installer-version: latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      OBSIDIAN_APP_VERSION: ${{ matrix.app-version }}
+      OBSIDIAN_INSTALLER_VERSION: ${{ matrix.installer-version }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: xvfb-run -a pnpm test:e2e
+
+  mobile-emulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: xvfb-run -a pnpm test:e2e:mobile
+      - run: pnpm test:performance
+      - run: pnpm test:storybook
+      - run: pnpm build
+      - run: pnpm verify:release

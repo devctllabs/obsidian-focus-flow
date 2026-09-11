@@ -1,0 +1,8 @@
+/* Curated host layout fixture, verified against Obsidian 1.13.7 app.css.
+ * This is intentionally not an extracted copy of the application stylesheet.
+ * Host buttons have a fixed input-height; plugin-owned multiline controls must
+ * explicitly opt out. Colors/fonts remain controlled by the theme toolbar.
+ * Reference: https://docs.obsidian.md/Reference/CSS+variables/Components/Button
+ */
+button { height: var(--input-height, 32px); corner-shape: squircle; }
+input[type=checkbox]:checked::after { content: ''; display: block; position: absolute; width: 16px; height: 16px; background: currentColor; }
