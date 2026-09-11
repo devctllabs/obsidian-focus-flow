@@ -83,7 +83,7 @@ jobs:
 
       - name: Install git-cliff
         uses: taiki-e/install-action@git-cliff
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: 24
