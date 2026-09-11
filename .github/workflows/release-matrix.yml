@@ -24,7 +24,7 @@ jobs:
       OBSIDIAN_APP_VERSION: ${{ matrix.app-version }}
       OBSIDIAN_INSTALLER_VERSION: ${{ matrix.installer-version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
