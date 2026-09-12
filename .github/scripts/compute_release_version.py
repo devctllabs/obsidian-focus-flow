@@ -14,7 +14,7 @@ from typing import Callable
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 STABLE_TAG_PATTERN = re.compile(
-    r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
 )
 BUMP_KINDS = ("patch", "minor", "major")
 Runner = Callable[[list[str]], subprocess.CompletedProcess[str]]
@@ -31,7 +31,7 @@ def run_command(arguments: list[str]) -> subprocess.CompletedProcess[str]:
 
 
 def stable_tags(runner: Runner = run_command) -> list[tuple[tuple[int, int, int], str]]:
-    result = runner(["git", "tag", "--list", "v*"])
+    result = runner(["git", "tag", "--list"])
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "failed to list git tags")
 
@@ -63,7 +63,7 @@ def compute_release(
     tags = stable_tags(runner)
     previous_version, previous_tag = tags[-1] if tags else ((0, 0, 0), "")
     next_version = bump_version(previous_version, bump)
-    next_tag = f"v{next_version[0]}.{next_version[1]}.{next_version[2]}"
+    next_tag = f"{next_version[0]}.{next_version[1]}.{next_version[2]}"
     return previous_tag, next_tag
 
 
@@ -134,7 +134,7 @@ def main() -> int:
         if args.require_absent_tag:
             require_absent_tag(next_tag)
         if args.require_plugin_version:
-            require_plugin_version(next_tag.removeprefix("v"))
+            require_plugin_version(next_tag)
     except (RuntimeError, ValueError, json.JSONDecodeError) as error:
         print(error, file=sys.stderr)
         return 1

@@ -16,18 +16,25 @@ def completed(
 
 
 class ReleaseVersionTests(unittest.TestCase):
-    def test_initial_minor_release_is_v0_1_0(self) -> None:
+    def test_initial_minor_release_is_0_1_0(self) -> None:
         previous, next_tag = release.compute_release("minor", lambda _: completed())
         self.assertEqual("", previous)
-        self.assertEqual("v0.1.0", next_tag)
+        self.assertEqual("0.1.0", next_tag)
 
     def test_bumps_latest_stable_tag_and_ignores_rc_tags(self) -> None:
-        tags = "v0.2.9\nv0.3.0-rc.1\nv0.10.1\nother/v9.0.0\n"
+        tags = "0.2.9\n0.3.0-rc.1\n0.10.1\nv9.0.0\nother/v9.0.0\n"
         previous, next_tag = release.compute_release(
             "patch", lambda _: completed(tags)
         )
-        self.assertEqual("v0.10.1", previous)
-        self.assertEqual("v0.10.2", next_tag)
+        self.assertEqual("0.10.1", previous)
+        self.assertEqual("0.10.2", next_tag)
+
+    def test_ignores_legacy_v_prefixed_tags(self) -> None:
+        previous, next_tag = release.compute_release(
+            "patch", lambda _: completed("v9.0.0\n0.2.0\n")
+        )
+        self.assertEqual("0.2.0", previous)
+        self.assertEqual("0.2.1", next_tag)
 
     def test_all_bump_kinds_reset_lower_components(self) -> None:
         self.assertEqual((2, 0, 0), release.bump_version((1, 2, 3), "major"))
@@ -46,15 +53,15 @@ class ReleaseVersionTests(unittest.TestCase):
             return completed("0\n")
 
         with self.assertRaisesRegex(RuntimeError, "no unreleased commits"):
-            release.require_new_commits("v0.1.0", runner)
+            release.require_new_commits("0.1.0", runner)
         self.assertEqual(
-            ["git", "rev-list", "--count", "v0.1.0..HEAD"], calls[0]
+            ["git", "rev-list", "--count", "0.1.0..HEAD"], calls[0]
         )
 
     def test_rejects_existing_remote_tag(self) -> None:
         responses = iter((completed(returncode=1), completed("tag\n")))
         with self.assertRaisesRegex(RuntimeError, "already exists on origin"):
-            release.require_absent_tag("v0.1.0", lambda _: next(responses))
+            release.require_absent_tag("0.1.0", lambda _: next(responses))
 
     def test_requires_all_plugin_versions_to_match_expected_tag(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

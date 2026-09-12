@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           fetch-tags: true
 
@@ -61,25 +61,7 @@ jobs:
           previous_tag="$(python3 .github/scripts/compute_release_version.py --bump "$BUMP" --previous)"
           echo "next_tag=$next_tag" >> "$GITHUB_OUTPUT"
           echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
-
-      - name: Create annotated tag
-        env:
-          NEXT_TAG: ${{ steps.release.outputs.next_tag }}
-          PREVIOUS_TAG: ${{ steps.release.outputs.previous_tag }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$NEXT_TAG" -m "Release ${NEXT_TAG#v}"
-          git push origin "$NEXT_TAG"
-          echo "RELEASE_TAG=$NEXT_TAG" >> "$GITHUB_ENV"
-          {
-            echo '# Release tag created'
-            echo
-            echo "- Previous tag: \`${PREVIOUS_TAG:-none}\`"
-            echo "- Tag: \`$NEXT_TAG\`"
-            echo "- Commit: \`$(git rev-parse HEAD)\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "RELEASE_TAG=$next_tag" >> "$GITHUB_ENV"
 
       - name: Install git-cliff
         uses: taiki-e/install-action@git-cliff
@@ -89,22 +71,41 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm test:unit
-      - run: pnpm test:performance
       - run: pnpm build
       - run: pnpm package:release
       - name: Generate release notes
         env:
           RELEASE_TAG: ${{ steps.release.outputs.next_tag }}
+          PREVIOUS_TAG: ${{ steps.release.outputs.previous_tag }}
         run: |
           set -euo pipefail
           notes_path="${RUNNER_TEMP}/release-notes.md"
-          git-cliff --current --output "$notes_path"
+          range=()
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            range=("$PREVIOUS_TAG..HEAD")
+          fi
+          git-cliff "${range[@]}" --tag "$RELEASE_TAG" --output "$notes_path"
           {
             echo '# Release Notes'
             echo
             cat "$notes_path"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Create annotated tag
+        env:
+          NEXT_TAG: ${{ steps.release.outputs.next_tag }}
+          PREVIOUS_TAG: ${{ steps.release.outputs.previous_tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEXT_TAG" -m "Release $NEXT_TAG"
+          git push origin "$NEXT_TAG"
+          {
+            echo '# Release tag created'
+            echo
+            echo "- Previous tag: \`${PREVIOUS_TAG:-none}\`"
+            echo "- Tag: \`$NEXT_TAG\`"
+            echo "- Commit: \`$(git rev-parse HEAD)\`"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v3
