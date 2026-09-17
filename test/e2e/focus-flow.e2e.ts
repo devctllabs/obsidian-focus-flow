@@ -29,6 +29,15 @@ async function clickButton(selector: string): Promise<void> {
   }, selector);
 }
 
+async function waitForCatalogStatus(message: string): Promise<void> {
+  await browser.waitUntil(
+    () => browser.execute((expected) =>
+      document.querySelector('.focus-flow__tag-catalog-settings [role="status"]')?.textContent?.trim() === expected,
+    message),
+    { timeoutMsg: `Expected Tag Catalog status: ${message}` },
+  );
+}
+
 async function expandStory(key: string): Promise<void> {
   const toggles = await browser.$$(`[aria-label="Expand ${key}"]`);
   for (const toggle of toggles) {
@@ -1328,7 +1337,10 @@ describe('Focus Flow lifecycle', () => {
     await clickButton('.focus-flow__tag-catalog-row');
     await browser.$('[aria-label="Description"]').setValue('Used in the current focus area');
     await browser.$('button=Save description').click();
+    await waitForCatalogStatus(`Description saved for #${tag}`);
+    await browser.$('[aria-label="Teal"]').waitForClickable();
     await browser.$('[aria-label="Teal"]').click();
+    await waitForCatalogStatus(`Color saved for #${tag}`);
     await browser.waitUntil(async () => (await readVaultFile('Focus Flow/TAGS.md')).includes('#0F766E'));
     expect(await readVaultFile('Focus Flow/TAGS.md')).toContain('Used in the current focus area');
     await browser.$('button=History').click();
@@ -1349,7 +1361,9 @@ describe('Focus Flow lifecycle', () => {
       if (row === undefined) throw new Error(`Tag catalog row was not found for #${expectedTag}`);
       row.click();
     }, tag);
+    await browser.$('[aria-label="Blue"]').waitForClickable();
     await browser.$('[aria-label="Blue"]').click();
+    await waitForCatalogStatus(`Color saved for #${tag}`);
     await browser.waitUntil(async () => (await readVaultFile('Focus Flow/TAGS.md')).includes('#2563EB'));
     expect(await readVaultFile('Focus Flow/TAGS.md')).toContain('My catalog notes');
   });

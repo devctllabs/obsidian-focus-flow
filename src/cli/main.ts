@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import process from 'node:process';
 import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { v7 as uuidV7 } from 'uuid';
+import pkg from '../../package.json';
 import { WorkIndex } from '../application/indexing/work-index';
 import { uncatalogedTagDiagnostics } from '../application/tags/catalog-diagnostics';
 import { WorkCreationService } from '../application/work/create-work';
@@ -35,6 +37,17 @@ const defaultIo: CliIo = {
 export async function runCli(
   argv: readonly string[],
   io: CliIo = defaultIo,
+): Promise<number> {
+  if (argv.length === 1 && argv[0] === '--version') {
+    io.stdout(`${pkg.version}\n`);
+    return 0;
+  }
+  return runVaultCommand(argv, io);
+}
+
+async function runVaultCommand(
+  argv: readonly string[],
+  io: CliIo,
 ): Promise<number> {
   let json = argv.includes('--json');
   try {
@@ -333,7 +346,7 @@ class UsageError extends Error {}
 
 if (
   process.argv[1] !== undefined &&
-  import.meta.url === pathToFileURL(resolve(process.argv[1])).href
+  fileURLToPath(import.meta.url) === realpathSync(process.argv[1])
 ) {
   process.exitCode = await runCli(process.argv.slice(2));
 }

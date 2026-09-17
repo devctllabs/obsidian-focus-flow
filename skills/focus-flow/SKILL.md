@@ -30,6 +30,7 @@ After successful CLI creation, use the returned vault-relative path for body and
 ## Edit authoring content
 
 - Preserve the `focus_flow` frontmatter branch byte-for-byte. Preserve the filename and title; direct renaming belongs to the plugin.
+- Resolve each requested canonical body section by its exact Markdown heading at any level. Patch the existing section boundary or append a missing `## <heading>` section; stop before writing when that heading occurs more than once.
 - Patch only requested canonical body sections and top-level `tags`. Preserve custom sections, unrelated frontmatter, line endings, and checked state for criteria whose meaning did not change.
 - Edit a terminal canonical note only when the user explicitly identifies it and asks for that edit.
 - On every create or edit, add only clearly relevant valid Cataloged Tags. Keep existing tags unless the user requests their removal, and omit a child tag already inherited through Effective Tags.

@@ -2,12 +2,24 @@ import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import pkg from '../../package.json';
 import { runCli, type CliIo } from './main';
 
 const firstId = '01990000-0000-7000-8000-000000000001';
 const secondId = '01990000-0000-7000-8000-000000000002';
 
 describe('Focus Flow CLI', () => {
+  it('prints the package version without requiring a Vault', async () => {
+    const output: string[] = [];
+    const errors: string[] = [];
+
+    const exitCode = await runCli(['--version'], io(output, errors));
+
+    expect(exitCode).toBe(0);
+    expect(output.join('')).toBe(`${pkg.version}\n`);
+    expect(errors).toEqual([]);
+  });
+
   it('creates a Candidate and emits one JSON document', async () => {
     const vault = await createVault();
     const output: string[] = [];
