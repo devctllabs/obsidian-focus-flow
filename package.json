@@ -7,11 +7,19 @@
   "bin": {
     "focus-flow": "dist/focus-flow.mjs"
   },
+  "files": [
+    "dist/focus-flow.mjs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devctllabs/obsidian-focus-flow.git"
+  },
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "dev": "node esbuild.config.mjs",
+    "prepare": "node scripts/prepare-cli.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.e2e.json",
     "lint": "eslint src",
     "test": "vitest run --project unit",
@@ -24,6 +32,7 @@
     "test:e2e:headless": "node scripts/run-e2e-headless.mjs",
     "test:e2e:mobile:headless": "node scripts/run-e2e-headless.mjs --mobile",
     "test:release-helper": "python3 -m unittest discover -s .github/scripts/tests -t .github/scripts",
+    "test:cli:install": "node scripts/check-cli-install.mjs",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
     "build": "pnpm typecheck && node esbuild.config.mjs production",

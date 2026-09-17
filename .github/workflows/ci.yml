@@ -36,5 +36,6 @@ jobs:
             ${{ runner.os }}-playwright-
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:release-helper
+      - run: pnpm test:cli:install
       - run: pnpm exec playwright install --with-deps chromium
       - run: xvfb-run -a pnpm check:full
