@@ -36,7 +36,7 @@ export interface FocusFlowSettings {
 export const DEFAULT_SETTINGS: FocusFlowSettings = {
   schemaVersion: 1,
   setupCompleted: false,
-  rootFolder: 'Focus Flow',
+  rootFolder: 'FocusFlow',
   firstWeekday: 1,
   wip: {
     sprintScope: { mode: 'soft', limit: 28 },
@@ -45,9 +45,9 @@ export const DEFAULT_SETTINGS: FocusFlowSettings = {
     inProgress: { mode: 'soft', limit: 1 },
   },
   templates: {
-    candidate: 'Focus Flow/Templates/Candidate.md',
-    task: 'Focus Flow/Templates/Task.md',
-    retrospective: 'Focus Flow/Templates/Retrospective.md',
+    candidate: 'FocusFlow/Templates/Candidate.md',
+    task: 'FocusFlow/Templates/Task.md',
+    retrospective: 'FocusFlow/Templates/Retrospective.md',
   },
   appearance: {
     accent: { source: 'obsidian' },
@@ -112,14 +112,17 @@ export function normalizeSettings(input: unknown): FocusFlowSettings {
   const templates = isRecord(settings.templates) ? settings.templates : {};
   const appearance = isRecord(settings.appearance) ? settings.appearance : {};
   const firstWeekday = settings.firstWeekday;
+  const rootFolder = nonEmptyString(settings.rootFolder, DEFAULT_SETTINGS.rootFolder);
+  const defaultTemplates = {
+    candidate: `${rootFolder}/Templates/Candidate.md`,
+    task: `${rootFolder}/Templates/Task.md`,
+    retrospective: `${rootFolder}/Templates/Retrospective.md`,
+  };
 
   return {
     schemaVersion: 1,
     setupCompleted: settings.setupCompleted === true,
-    rootFolder: nonEmptyString(
-      settings.rootFolder,
-      DEFAULT_SETTINGS.rootFolder,
-    ),
+    rootFolder,
     firstWeekday: isWeekday(firstWeekday)
       ? firstWeekday
       : DEFAULT_SETTINGS.firstWeekday,
@@ -138,12 +141,12 @@ export function normalizeSettings(input: unknown): FocusFlowSettings {
     templates: {
       candidate: nonEmptyString(
         templates.candidate,
-        DEFAULT_SETTINGS.templates.candidate,
+        defaultTemplates.candidate,
       ),
-      task: nonEmptyString(templates.task, DEFAULT_SETTINGS.templates.task),
+      task: nonEmptyString(templates.task, defaultTemplates.task),
       retrospective: nonEmptyString(
         templates.retrospective,
-        DEFAULT_SETTINGS.templates.retrospective,
+        defaultTemplates.retrospective,
       ),
     },
     appearance: {

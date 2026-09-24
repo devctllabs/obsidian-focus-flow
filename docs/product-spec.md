@@ -340,7 +340,7 @@ Repair operations show exact affected files and preserve unmanaged frontmatter a
 
 V1 settings are:
 
-- Focus Flow root folder, default `Focus Flow`;
+- Active Workspace root folder, default `FocusFlow` for new installations;
 - accent color source, default Obsidian, with Indigo and custom `#RRGGBB`
   alternatives adapted to accessible light/dark UI roles;
 - first weekday, default Monday;
@@ -370,19 +370,27 @@ shows the effective marker and `Obsidian`, `Indigo`, or the saved HEX value.
 
 The same settings surface renders in the Focus Flow leaf and native Obsidian Settings. No default hotkeys are assigned.
 
-On first use, onboarding previews the root and exact folders/default body
-templates to create. It creates only missing paths and never overwrites an
-existing note or template. If the root already contains Focus Flow metadata,
-onboarding validates and adopts it instead. Setup starts on the first
-root-dependent action rather than plugin enable and never generates Mission
-content.
+On first use, onboarding first asks whether to create a new Workspace or open
+an existing one, then immediately shows the vault folder browser. Create
+combines a selected parent folder with a folder name and requires the resulting
+path to be missing. Open selects an existing folder directly. A conflicting
+Create or Move destination is shown as a warning and disables the primary
+action until the name or parent changes. Both flows preview the exact folders
+and default body templates to create; Open validates the selected Workspace,
+preserves every existing file, and creates only missing standard folders and
+templates. Back remains visible beside the primary action. Either operation
+makes that Workspace active and leaves any other Workspace in the vault
+untouched. Setup starts on the first root-dependent action rather than plugin
+enable and never generates Mission content.
 
-After the root contains domain notes, changing it is a deliberate **Move Focus
-Flow root** operation rather than an immediate text-setting update. The target
-must not exist. The operation records transient recovery state, renames the
-whole tree through the Vault API, remaps configured template paths inside the
-old root, updates the setting only after success, and reindexes. Selecting an
-existing root is a separate validation flow with no domain writes.
+After setup, **Change…** offers three explicit operations. **Create new
+workspace** and **Open existing workspace** select a different Active Workspace
+without moving the previous one. **Move current workspace** requires a missing
+target, records transient recovery state, renames the whole tree through the
+Vault API, remaps configured template paths inside the old root, updates the
+setting after the rename, and reindexes. A recursive copy is not offered
+because duplicated identities and path-qualified links require a dedicated
+clone design.
 
 ## Accessibility and platform acceptance
 

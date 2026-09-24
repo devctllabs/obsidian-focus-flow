@@ -27,3 +27,4 @@
 - [0025 — Reopen only the latest Closed Sprint](./0025-reopen-only-the-latest-closed-sprint.md)
 - [0026 — Archive Closed Sprints by close month](./0026-archive-closed-sprints-by-close-month.md)
 - [0027 — Curate Workspace Tags in One Catalog](./0027-curate-workspace-tags-in-one-catalog.md)
+- [0028 — Separate Workspace selection from relocation](./0028-separate-workspace-selection-from-relocation.md)

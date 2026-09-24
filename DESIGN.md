@@ -249,7 +249,7 @@ History shows one visual report at a time: a compact outcome ring, ranked Effect
 
 ### Settings & Vault Pickers
 
-Settings is value-first: workspace location, weekday buttons, and WIP policies remain readable in compact rows, while policy editors and vault-scoped folder/file pickers open only when requested. Folder move confirmation lives inside the picker; switching to an existing root remains a distinct operation.
+Settings is value-first: Workspace location, weekday buttons, and WIP policies remain readable in compact rows, while policy editors and vault-scoped folder/file pickers open only when requested. **Change…** opens one flat choice surface for Create new, Open existing, and Move current. Each choice continues in the same dialog. Back is a bordered secondary action beside the primary action, with a left arrow that makes the return path explicit. Move confirmation lives inside its picker.
 
 Accent editing reuses the Tag color pattern: the collapsed row shows a color marker plus `Obsidian`, `Indigo`, or the selected HEX value. The expanded row starts with `Obsidian`, then Indigo, Blue, Teal, Green, Amber, and Rose swatches, followed by `Custom HEX` and `Save color`. Presets save immediately; invalid custom values cannot be submitted.
 
@@ -259,7 +259,7 @@ Terminal-note organization keeps one preview/resume surface for Done/Closed
 work and Closed Sprints. It does not expose Review Cycle folders or rewrite
 arbitrary user-authored Sprint links.
 
-First-use Setup combines the workspace folder and expandable template selection with a creation/adoption preview. Existing template files are explicitly marked for reuse. Its Storybook content is framed as a compact native modal, with one aligned title/content measure and a 560px maximum width.
+First-use Setup starts with Create new or Open existing, then immediately shows an embedded folder browser. Create chooses a parent folder and name; Open chooses an existing folder. Expandable template selection stays below the browser before the intent-specific preview, and existing template files are explicitly marked for reuse. A conflicting destination appears as an amber status notice next to the name and disables Review until the user changes it. Its Storybook content is framed as a compact native modal, with one aligned title/content measure and a 560px maximum width.
 
 ### Reflection and corrections
 

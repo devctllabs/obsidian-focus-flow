@@ -22,6 +22,18 @@ export function PlusIcon(props: IconProps) {
   return <IconFrame {...props}><path d="M12 5v14M5 12h14" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" /></IconFrame>;
 }
 
+export function FolderPlusIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="M3.5 7.5h6l1.7 2H20a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8.5a1 1 0 0 1 .5-1Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" /><path d="M15 12v4M13 14h4" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" /></IconFrame>;
+}
+
+export function FolderOpenIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="M3 8.5v8.75a1 1 0 0 0 1 1h14.5l2.5-7.5H8.5l-2 2.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.6" /><path d="M3 8.5V6a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v2.75" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.6" /></IconFrame>;
+}
+
+export function MoveIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="M5 8h11M13 5l3 3-3 3M19 16H8M11 13l-3 3 3 3" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" /></IconFrame>;
+}
+
 export function PlayIcon(props: IconProps) {
   return <IconFrame {...props}><path d="m9 5 10 7-10 7V5Z" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.8" /></IconFrame>;
 }

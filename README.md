@@ -19,7 +19,7 @@ everyday workflows.
 
 ## Product principles
 
-- Markdown in the current vault is the source of truth.
+- Markdown in the Active Workspace is the source of truth.
 - Focus Flow is permanently personal, with one hierarchy: Epic → Story → Task.
 - Backlogs express priority, Stories express outcomes, and weekly commitment is
   explicit rather than rolled over automatically.
@@ -45,9 +45,13 @@ the Obsidian plugin.
 With Node.js 22+, npm, and Git installed:
 
 ```sh
-npm install -g 'github:devctllabs/obsidian-focus-flow'
+npm install -g --install-links 'github:devctllabs/obsidian-focus-flow'
 focus-flow --version
 ```
+
+On npm versions that otherwise link a prepared Git checkout to a temporary
+directory, `--install-links` keeps the installed CLI independent of that
+temporary checkout.
 
 ```sh
 focus-flow create candidate --vault "/path/to/vault" --title "Capture friction"

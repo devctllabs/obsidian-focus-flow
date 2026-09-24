@@ -33,6 +33,8 @@ describe('Focus Flow mobile-compatible path', () => {
       const animations = document.querySelector('.modal-container')?.getAnimations({ subtree: true }) ?? [];
       void Promise.all(animations.map((animation) => animation.finished.catch(() => undefined))).then(() => done());
     });
+    await browser.$('[aria-label="Open existing workspace"]').click();
+    await browser.$('[aria-label="Open folder Focus Flow"]').click();
     await browser.$('button=Review setup').click();
     await expect(browser.$('button=Use this workspace')).toBeDisplayed();
     await expect(browser.$('button=Use this workspace')).toBeEnabled();

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, type FocusFlowSettings } from '../../settings';
+import type { WorkspaceSetupIntent } from '../../application/root/root-workspace';
 import { AppearanceStore } from '../appearance/appearance';
 import { SettingsSurface, type SettingsController } from './SettingsSurface';
 
@@ -10,9 +11,9 @@ function controller() {
   return {
     getSettings: () => settings,
     updateSettings: vi.fn(async (update: (current: FocusFlowSettings) => FocusFlowSettings) => { settings = update(settings); }),
-    requestRootSetup: vi.fn(async () => undefined),
+    previewRootSetup: vi.fn(async (_intent: WorkspaceSetupIntent, root: string) => ({ root, missingFolders: [], missingTemplates: [], warnings: [], errors: [] })),
+    confirmRootSetup: vi.fn(async (_intent: WorkspaceSetupIntent, root: string) => { settings = { ...settings, rootFolder: root, setupCompleted: true }; }),
     requestRootMove: vi.fn(async (root: string) => { settings = { ...settings, rootFolder: root }; }),
-    selectExistingRoot: vi.fn(async (root: string) => { settings = { ...settings, rootFolder: root }; }),
     requestResumeRootMove: vi.fn(async () => undefined),
     hasPendingRootMove: () => false,
     listFolders: () => ['Projects/Existing Flow'],
@@ -76,27 +77,32 @@ describe('SettingsSurface', () => {
     expect(screen.getByText('3 files')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Choose task template' })).not.toBeVisible();
   });
-  it('opens the complete Setup directly before initialization', async () => {
+  it('offers Create and Open before initialization without offering Move', async () => {
     const user = userEvent.setup();
     const settings = controller();
     settings.getSettings().setupCompleted = false;
     render(<SettingsSurface controller={settings} />);
     await user.click(screen.getByRole('button', { name: 'Set up' }));
-    expect(settings.requestRootSetup).toHaveBeenCalledWith('Focus Flow');
-    expect(screen.queryByRole('dialog', { name: 'Create workspace folder' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Set up Focus Flow' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Create new workspace' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Open existing workspace' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Move current workspace' })).not.toBeInTheDocument();
   });
   it('confirms a folder move in the picker itself, without a second dialog', async () => {
     const user = userEvent.setup();
     const settings = controller();
     render(<SettingsSurface controller={settings} />);
     await user.click(screen.getByRole('button', { name: 'Change…' }));
-    expect(screen.getByRole('button', { name: 'Move folder' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Create new workspace' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Open existing workspace' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Move current workspace' }));
+    expect(screen.getByRole('button', { name: 'Move workspace' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Open folder Projects' }));
-    expect(screen.getByText('Vault / Projects / Focus Flow')).toBeInTheDocument();
-    expect(screen.getByText('Moves all notes from Focus Flow. Existing folders are never overwritten.')).toBeInTheDocument();
+    expect(screen.getByText('Vault / Projects / FocusFlow')).toBeInTheDocument();
+    expect(screen.getByText('Moves the Active Workspace from FocusFlow. Its old path will disappear.')).toBeInTheDocument();
     expect(settings.requestRootMove).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'Move folder' }));
-    expect(settings.requestRootMove).toHaveBeenCalledWith('Projects/Focus Flow', true);
+    await user.click(screen.getByRole('button', { name: 'Move workspace' }));
+    expect(settings.requestRootMove).toHaveBeenCalledWith('Projects/FocusFlow', true);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
   it('chooses the weekday directly and a template through the vault file browser', async () => {
@@ -118,46 +124,46 @@ describe('SettingsSurface', () => {
     const user = userEvent.setup();
     const settings = controller();
     render(<SettingsSurface controller={settings} />);
-    expect(screen.getAllByText('Focus Flow')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('FocusFlow')[0]).toBeInTheDocument();
     expect(screen.queryByRole('textbox', { name: 'New folder' })).not.toBeInTheDocument();
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Change…' }));
-    await user.click(screen.getByRole('button', { name: 'Open folder Projects' }));
-    await user.clear(screen.getByRole('textbox', { name: 'Folder name' }));
-    await user.type(screen.getByRole('textbox', { name: 'Folder name' }), 'My Flow');
+    await user.click(screen.getByRole('button', { name: 'Create new workspace' }));
+    expect(screen.getByRole('searchbox', { name: 'Find a folder' })).toBeVisible();
+    expect(screen.getByRole('textbox', { name: 'Folder name' })).toHaveValue('FocusFlow');
+    expect(screen.queryByRole('textbox', { name: 'Workspace folder' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Browse folders…' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close dialog' }));
     expect(settings.requestRootMove).not.toHaveBeenCalled();
-    expect(screen.getByText('Focus Flow')).toBeInTheDocument();
+    expect(screen.getByText('FocusFlow')).toBeInTheDocument();
   });
 
   it('distinguishes switching an existing workspace from moving current files', async () => {
     const user = userEvent.setup();
     const settings = controller();
     render(<SettingsSurface controller={settings} />);
-    expect(screen.queryByRole('button', { name: 'Workspace options' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Change…' }));
-    expect(screen.getByRole('dialog', { name: 'Move workspace folder' })).toHaveAccessibleDescription('Choose the parent folder below. Your workspace folder and notes will move inside it.');
-    await user.click(screen.getByRole('button', { name: 'Open an existing workspace instead…' }));
-    expect(screen.queryByRole('textbox', { name: 'Folder name' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Open existing workspace' }));
     await user.click(screen.getByRole('button', { name: 'Open folder Projects' }));
     await user.click(screen.getByRole('button', { name: 'Open folder Projects/Existing Flow' }));
-    await user.click(screen.getByRole('button', { name: 'Use this folder' }));
+    await user.click(screen.getByRole('button', { name: 'Review setup' }));
     await user.click(screen.getByRole('button', { name: 'Use this workspace' }));
-    expect(settings.selectExistingRoot).toHaveBeenCalledWith('Projects/Existing Flow');
+    expect(settings.confirmRootSetup).toHaveBeenCalledWith('open', 'Projects/Existing Flow', expect.anything());
     expect(settings.requestRootMove).not.toHaveBeenCalled();
     expect(screen.getByText('Projects/Existing Flow')).toBeInTheDocument();
   });
 
   it('keeps the location unchanged if the move does not complete', async () => {
     const user = userEvent.setup();
-    const settings = { ...controller(), requestRootMove: vi.fn(async () => undefined) };
+    const settings = { ...controller(), requestRootMove: vi.fn(async () => { throw new Error('Move interrupted'); }) };
     render(<SettingsSurface controller={settings} />);
     await user.click(screen.getByRole('button', { name: 'Change…' }));
+    await user.click(screen.getByRole('button', { name: 'Move current workspace' }));
     await user.click(screen.getByRole('button', { name: 'Open folder Projects' }));
     await user.clear(screen.getByRole('textbox', { name: 'Folder name' }));
     await user.type(screen.getByRole('textbox', { name: 'Folder name' }), 'My Flow');
-    await user.click(screen.getByRole('button', { name: 'Move folder' }));
-    expect(screen.getByText('Focus Flow')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Move workspace' }));
+    expect(screen.getByText('FocusFlow')).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'Folder name' })).toHaveValue('My Flow');
     expect(screen.queryByText('Storage updated')).not.toBeInTheDocument();
   });

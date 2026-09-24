@@ -7,14 +7,14 @@ const controller: RootSetupController = {
   settings: DEFAULT_SETTINGS,
   folders: ['Personal', 'Personal/Focus'],
   files: ['Personal/Focus/Templates/Candidate.md', 'Personal/Focus/Templates/Task.md', 'Personal/Focus/Templates/Retrospective.md', 'Templates/My capture.md'],
-  preview: async (root) => ({ root, missingFolders: root === 'Personal/Focus' ? [] : [root, `${root}/Inbox`], missingTemplates: root === 'Personal/Focus' ? [] : [`${root}/Templates/Candidate.md`, `${root}/Templates/Task.md`, `${root}/Templates/Retrospective.md`], warnings: [], errors: [] }),
+  preview: async (_intent, root) => ({ root, missingFolders: root === 'Personal/Focus' ? [] : [root, `${root}/Inbox`], missingTemplates: root === 'Personal/Focus' ? [] : [`${root}/Templates/Candidate.md`, `${root}/Templates/Task.md`, `${root}/Templates/Retrospective.md`], warnings: [], errors: [] }),
   confirm: async () => undefined,
 };
 const meta = {
   title: 'Features/Settings/RootSetupSurface',
   component: RootSetupSurface,
   decorators: [(Story) => <div className="focus-flow-story-modal-stage"><section className="focus-flow focus-flow-story-native-modal" aria-label="Set up Focus Flow modal preview"><h2 className="focus-flow-story-modal-title">Set up Focus Flow</h2><Story /></section></div>],
-  args: { controller, onDone: fn(), onCancel: fn() },
+  args: { controller, intent: 'create', onDone: fn(), onBack: fn() },
 } satisfies Meta<typeof RootSetupSurface>;
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -24,24 +24,34 @@ export const Loaded: Story = {
     const canvas = within(canvasElement);
     const modal = canvas.getByRole('region', { name: 'Set up Focus Flow modal preview' }).getBoundingClientRect();
     const heading = canvas.getByRole('heading', { name: 'Set up Focus Flow' }).getBoundingClientRect();
-    const input = canvas.getByLabelText('Workspace folder').getBoundingClientRect();
+    const input = canvas.getByLabelText('Folder name').getBoundingClientRect();
     await expect(modal.width).toBeLessThanOrEqual(560);
-    await expect(modal.height).toBeLessThan(600);
+    await expect(modal.height).toBeLessThan(700);
     await expect(Math.abs(heading.left - input.left)).toBeLessThan(2);
   },
 };
-export const ExistingWorkspace: Story = {
+export const NameConflict: Story = {
+  args: { controller: { ...controller, folders: ['FocusFlow', ...controller.folders] } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.clear(canvas.getByLabelText('Workspace folder'));
-    await userEvent.type(canvas.getByLabelText('Workspace folder'), 'Personal/Focus');
+    await expect(canvas.getByRole('status')).toHaveTextContent('That folder name is already in use here. Choose a different name.');
+    await expect(canvas.getByRole('button', { name: 'Review setup' })).toBeDisabled();
+    await expect(canvas.getByRole('button', { name: 'Back' }).querySelector('svg')).not.toBeNull();
+  },
+};
+export const ExistingWorkspace: Story = {
+  args: { intent: 'open' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Open folder Personal' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Open folder Personal/Focus' }));
     await userEvent.click(canvas.getByText('Templates', { exact: true }));
     await userEvent.click(canvas.getByRole('button', { name: 'Review setup' }));
     await expect(canvas.getByRole('button', { name: 'Use this workspace' })).toBeEnabled();
   },
 };
 export const ValidationErrors: Story = {
-  args: { controller: { ...controller, preview: async (root) => ({ root, missingFolders: [], missingTemplates: [], warnings: [], errors: ['Focus Flow/Tasks is a file. Rename it or choose another workspace folder.'] }) } },
+  args: { controller: { ...controller, preview: async (_intent, root) => ({ root, missingFolders: [], missingTemplates: [], warnings: [], errors: ['Focus Flow/Tasks is a file. Rename it or choose another workspace folder.'] }) } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Review setup' }));

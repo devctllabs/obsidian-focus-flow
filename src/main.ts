@@ -46,10 +46,10 @@ import { ObsidianTextTemplateReader } from './obsidian/services/ObsidianTextTemp
 import { STANDARD_BODY_TEMPLATES } from './application/work/standard-templates';
 import {
   parsePendingRootMove,
-  remapTemplates,
   RootWorkspaceService,
   type PendingRootMove,
   type RootWorkspaceState,
+  type WorkspaceSetupIntent,
 } from './application/root/root-workspace';
 import { CandidateCaptureModal } from './obsidian/commands/CandidateCaptureModal';
 import { deleteDistraction } from './application/work/delete-distraction';
@@ -258,8 +258,8 @@ export default class FocusFlowPlugin extends Plugin {
           listTags: this.listTags,
           listCurrentTagUsage: this.listCurrentTagUsage,
           updateSettings: (update) => this.updateSettings(update),
-          requestRootSetup: (root) => this.requestRootSetup(root),
-          selectExistingRoot: (root) => this.selectExistingRoot(root),
+          previewRootSetup: (intent, root, templates) => this.previewRootSetup(intent, root, templates),
+          confirmRootSetup: (intent, root, templates) => this.confirmRootSetup(intent, root, templates),
           requestRootMove: (root, confirmed) => this.requestRootMove(root, confirmed),
           requestResumeRootMove: () => this.requestResumeRootMove(),
           hasPendingRootMove: () => this.hasPendingRootMove(),
@@ -463,28 +463,26 @@ export default class FocusFlowPlugin extends Plugin {
     await this.app.workspace.revealLeaf(leaf);
   }
 
-  async requestRootSetup(root: string): Promise<void> {
-    await this.openRootSetup(root);
+  previewRootSetup(intent: WorkspaceSetupIntent, root: string, templates: FocusFlowSettings['templates']) {
+    this.assertNoActiveMutation();
+    return this.rootWorkspace.previewSetup(intent, root, templates);
   }
 
-  private openRootSetup(root: string): Promise<boolean> {
+  async confirmRootSetup(intent: WorkspaceSetupIntent, root: string, templates: FocusFlowSettings['templates']): Promise<void> {
+    this.assertNoActiveMutation();
+    await this.lifecycleWriter.assertNoPending();
+    await this.rootWorkspace.confirmSetup(intent, root, templates);
+    await this.refreshActiveWorkspace();
+  }
+
+  private openRootSetup(): Promise<boolean> {
     return confirmRootSetup(this.app, {
-      settings: { ...this.settings, rootFolder: root, templates: remapTemplates(this.settings.templates, this.settings.rootFolder, root) },
+      settings: this.settings,
       folders: this.app.vault.getAllFolders().map((folder) => folder.path),
       files: this.app.vault.getMarkdownFiles().map((file) => file.path),
-      preview: (path, templates) => this.rootWorkspace.previewSetup(path, templates),
-      confirm: async (path, templates) => {
-        this.assertNoActiveMutation();
-        await this.rootWorkspace.confirmSetup(path, templates);
-        await this.index.refresh();
-      },
+      preview: (intent, path, templates) => this.previewRootSetup(intent, path, templates),
+      confirm: (intent, path, templates) => this.confirmRootSetup(intent, path, templates),
     });
-  }
-
-  async selectExistingRoot(root: string): Promise<void> {
-    this.assertNoActiveMutation();
-    await this.rootWorkspace.selectExistingRoot(root);
-    await this.index.refresh();
   }
 
   async requestRootMove(root: string, confirmedInPicker = false): Promise<void> {
@@ -494,7 +492,7 @@ export default class FocusFlowPlugin extends Plugin {
       confirmedInPicker || await confirmRootMove(this.app, this.settings.rootFolder, root.trim())
     ) {
       await this.rootWorkspace.moveRoot(root);
-      await this.index.refresh();
+      await this.refreshActiveWorkspace();
     }
   }
 
@@ -510,7 +508,7 @@ export default class FocusFlowPlugin extends Plugin {
       )
     ) {
       await this.rootWorkspace.resumeMove();
-      await this.index.refresh();
+      await this.refreshActiveWorkspace();
     }
   }
 
@@ -542,10 +540,15 @@ export default class FocusFlowPlugin extends Plugin {
         return false;
       }
       await this.rootWorkspace.resumeMove();
-      await this.index.refresh();
+      await this.refreshActiveWorkspace();
       return true;
     }
-    return this.openRootSetup(this.settings.rootFolder);
+    return this.openRootSetup();
+  }
+
+  private async refreshActiveWorkspace(): Promise<void> {
+    await this.index.refresh();
+    await this.tagCatalog.refresh();
   }
 
   private async saveRootWorkspaceState(state: RootWorkspaceState): Promise<void> {

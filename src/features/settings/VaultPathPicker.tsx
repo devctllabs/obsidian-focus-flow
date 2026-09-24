@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode, type RefObject } from 'react';
 import { DialogSurface } from '../ui/DialogSurface';
-import { ChevronIcon } from '../ui/Icons';
+import { AttentionIcon, ChevronIcon } from '../ui/Icons';
 
-interface VaultPathPickerProps {
+export interface VaultPathPickerProps {
   title: string;
   description?: string;
   confirmation?: string;
@@ -13,38 +13,47 @@ interface VaultPathPickerProps {
   initialFolder: string;
   onClose: () => void;
   onChoose: (path: string) => void;
+  onFolderChange?: (path: string) => void;
   action: string;
   workspaceName?: string;
   onNameChange?: (name: string) => void;
   disabled?: boolean;
   error?: string | null;
+  children?: ReactNode;
 }
 
 export function VaultPathPicker(props: VaultPathPickerProps) {
-  const { title, description, confirmation, secondaryAction, validateSelection, folders, files, initialFolder, onClose, onChoose, action, workspaceName, onNameChange, disabled = false, error } = props;
+  const { title, description, onClose } = props;
+  const searchRef = useRef<HTMLInputElement>(null);
+  return <DialogSurface title={title} description={description} initialFocusRef={searchRef} onClose={onClose}>
+    <VaultPathPickerContent {...props} searchRef={searchRef} />
+  </DialogSurface>;
+}
+
+export function VaultPathPickerContent(props: VaultPathPickerProps & { searchRef?: RefObject<HTMLInputElement | null> }) {
+  const { confirmation, secondaryAction, validateSelection, folders, files, initialFolder, onChoose, onFolderChange, action, workspaceName, onNameChange, disabled = false, error, children, searchRef: providedSearchRef } = props;
   const [folder, setFolder] = useState(initialFolder);
   const [query, setQuery] = useState('');
   const [selectedFile, setSelectedFile] = useState('');
-  const searchRef = useRef<HTMLInputElement>(null);
+  const localSearchRef = useRef<HTMLInputElement>(null);
+  const searchRef = providedSearchRef ?? localSearchRef;
   const search = query.trim().toLocaleLowerCase();
   const directories = visiblePaths([...folderSet(folders, files)], search, folder);
   const documents = visiblePaths(files ?? [], search, folder);
-  const location = (path: string) => { setFolder(path); setQuery(''); setSelectedFile(''); };
+  const location = (path: string) => { setFolder(path); setQuery(''); setSelectedFile(''); onFolderChange?.(path); };
   const segments = folder.split('/').filter(Boolean);
   const destination = workspaceName !== undefined ? [folder, workspaceName.trim()].filter(Boolean).join('/') : folder;
   const selectionError = validateSelection?.(destination);
-  return <DialogSurface title={title} description={description} initialFocusRef={searchRef} onClose={onClose}>
-    <div className="focus-flow__vault-picker">
+  return <div className="focus-flow__vault-picker">
       <input ref={searchRef} type="search" aria-label={files ? 'Find a file' : 'Find a folder'} placeholder={files ? 'Search files in vault…' : 'Search folders in vault…'} value={query} onChange={(event) => setQuery(event.currentTarget.value)} />
       <VaultBreadcrumbs segments={segments} onSelect={location} />
       <VaultEntries directories={directories} documents={documents} search={search} hasFiles={files !== undefined} selectedFile={selectedFile} onOpenFolder={location} onSelectFile={setSelectedFile} />
       <WorkspaceNameField value={workspaceName} onChange={onNameChange} />
+      <SelectionNotice message={selectionError} />
+      {children}
       <PickerMessage error={error} confirmation={confirmation} />
-      <PickerFooter files={files} folder={folder} selectedFile={selectedFile} workspaceName={workspaceName} action={action} disabled={disabled} selectionError={selectionError} onChoose={onChoose} />
-      <SelectionError error={selectionError} />
-      <SecondaryPickerAction action={secondaryAction} />
-    </div>
-  </DialogSurface>;
+      <PickerFooter files={files} folder={folder} selectedFile={selectedFile} workspaceName={workspaceName} action={action} secondaryAction={secondaryAction} disabled={disabled} selectionError={selectionError} onChoose={onChoose} />
+  </div>;
 }
 
 function folderSet(folders: readonly string[], files: readonly string[] | undefined): Set<string> {
@@ -91,11 +100,11 @@ function PickerMessage({ error, confirmation }: { error?: string | null; confirm
   return <>{error && <p role="alert">{error}</p>}{confirmation && <p className="focus-flow__picker-confirmation">{confirmation}</p>}</>;
 }
 
-function PickerFooter({ files, folder, selectedFile, workspaceName, action, disabled, selectionError, onChoose }: { files?: readonly string[]; folder: string; selectedFile: string; workspaceName?: string; action: string; disabled: boolean; selectionError?: string | null; onChoose: (path: string) => void }) {
+function PickerFooter({ files, folder, selectedFile, workspaceName, action, secondaryAction, disabled, selectionError, onChoose }: { files?: readonly string[]; folder: string; selectedFile: string; workspaceName?: string; action: string; secondaryAction?: { label: string; onClick: () => void }; disabled: boolean; selectionError?: string | null; onChoose: (path: string) => void }) {
   const choosingFile = files !== undefined;
   const target = choosingFile ? selectedFile : folder;
   const label = pickerDestination(choosingFile, selectedFile, folder, workspaceName);
-  return <footer><p>{workspaceName !== undefined && <span className="focus-flow__destination-label">Destination</span>}{label}</p><button className="focus-flow__button-primary" disabled={disabled || Boolean(selectionError) || (choosingFile && selectedFile === '')} type="button" onClick={() => onChoose(target)}>{action}</button></footer>;
+  return <footer><p>{workspaceName !== undefined && <span className="focus-flow__destination-label">Destination</span>}{label}</p><div className="focus-flow__picker-actions">{secondaryAction && <button className="focus-flow__picker-back" type="button" onClick={secondaryAction.onClick}><ChevronIcon direction="left" />{secondaryAction.label}</button>}<button className="focus-flow__button-primary" disabled={disabled || Boolean(selectionError) || (choosingFile && selectedFile === '')} type="button" onClick={() => onChoose(target)}>{action}</button></div></footer>;
 }
 
 function pickerDestination(choosingFile: boolean, selectedFile: string, folder: string, workspaceName?: string): string {
@@ -104,5 +113,4 @@ function pickerDestination(choosingFile: boolean, selectedFile: string, folder: 
   return folder || 'Vault root';
 }
 
-function SelectionError({ error }: { error?: string | null }) { return error ? <p className="focus-flow__picker-confirmation" role="status">{error}</p> : null; }
-function SecondaryPickerAction({ action }: { action?: { label: string; onClick: () => void } }) { return action ? <button className="focus-flow__picker-alternative focus-flow__button-quiet" type="button" onClick={action.onClick}>{action.label}</button> : null; }
+function SelectionNotice({ message }: { message?: string | null }) { return message ? <p className="focus-flow__picker-warning" role="status"><AttentionIcon />{message}</p> : null; }

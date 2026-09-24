@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import type { FocusFlowSettings, WipEnforcement } from '../../settings';
+import type { RootSetupPreview, WorkspaceSetupIntent } from '../../application/root/root-workspace';
 import { RootFolderSetting } from './RootFolderSetting';
 import { ChevronIcon } from '../ui/Icons';
 import { DialogSurface } from '../ui/DialogSurface';
@@ -24,8 +25,8 @@ export interface SettingsController {
   listCurrentTagUsage?(): Readonly<Record<string, number>>;
   getSettings(): FocusFlowSettings;
   updateSettings(update: (settings: FocusFlowSettings) => FocusFlowSettings): Promise<void>;
-  requestRootSetup(root: string): Promise<void>;
-  selectExistingRoot(root: string): Promise<void>;
+  previewRootSetup(intent: WorkspaceSetupIntent, root: string, templates: FocusFlowSettings['templates']): Promise<RootSetupPreview>;
+  confirmRootSetup(intent: WorkspaceSetupIntent, root: string, templates: FocusFlowSettings['templates']): Promise<void>;
   requestRootMove(root: string, confirmedInPicker?: boolean): Promise<void>;
   requestResumeRootMove(): Promise<void>;
   hasPendingRootMove(): boolean;
