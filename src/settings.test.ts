@@ -2,6 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, normalizeSettings } from './settings';
 
 describe('normalizeSettings', () => {
+  it('uses FocusFlow for new workspaces without renaming persisted roots', () => {
+    expect(DEFAULT_SETTINGS.rootFolder).toBe('FocusFlow');
+    expect(DEFAULT_SETTINGS.templates).toEqual({
+      candidate: 'FocusFlow/Templates/Candidate.md',
+      task: 'FocusFlow/Templates/Task.md',
+      retrospective: 'FocusFlow/Templates/Retrospective.md',
+    });
+    const legacy = normalizeSettings({ rootFolder: 'Focus Flow' });
+    expect(legacy.rootFolder).toBe('Focus Flow');
+    expect(legacy.templates).toEqual({
+      candidate: 'Focus Flow/Templates/Candidate.md',
+      task: 'Focus Flow/Templates/Task.md',
+      retrospective: 'Focus Flow/Templates/Retrospective.md',
+    });
+  });
+
   it('keeps valid fields and replaces invalid fields independently', () => {
     const settings = normalizeSettings({
       schemaVersion: 1,

@@ -36,8 +36,8 @@ Open Focus Flow from the left ribbon, run **Open Focus**, **Open Plan**,
 **Open Inbox**, or **Open History**, or capture your first Candidate. If Focus
 Flow has not been set up yet, it opens setup automatically.
 
-1. Choose a Workspace folder. The default is `Focus Flow`.
-2. Create a new Workspace or select an existing Focus Flow folder.
+1. Choose **Create new workspace** or **Open existing workspace**.
+2. Use the visible folder browser to choose an existing Workspace, or choose a parent folder and name for a new one. New Workspaces default to `FocusFlow`.
 3. Optionally choose different Candidate, Task, and Retrospective templates.
 4. Select **Review setup** and inspect the folders, templates, and warnings.
 5. Select **Create workspace** or **Use this workspace**.
@@ -45,6 +45,11 @@ Flow has not been set up yet, it opens setup automatically.
 Setup creates only missing folders and standard templates. It keeps existing
 files. You can optionally create `<workspace>/MISSION.md`; a missing Mission
 never blocks capture, planning, or work.
+
+If the chosen Create destination already exists, Setup shows a warning and
+keeps **Review setup** disabled until you choose another parent or folder name.
+Use the bordered **Back** action beside the primary action to return to the
+operation choices without closing the dialog.
 
 After setup, open the gear menu to choose **Week starts on** and configure any
 **Work in progress** limits. **Ask first** lets you override a limit explicitly,
@@ -207,8 +212,12 @@ not copies, and History does not depend on their paths.
 
 ## Settings and maintenance
 
-- **Workspace folder** changes or reconnects the Workspace through a guarded
-  preview. Focus Flow never merges or overwrites a conflicting destination.
+- **Workspace folder → Change…** offers three operations. **Create new
+  workspace** starts an independent empty Workspace. **Open existing
+  workspace** validates and selects another Workspace while preserving its
+  files. Both leave the previous Workspace in place. **Move current workspace**
+  relocates the Active Workspace, so its old path disappears. Focus Flow never
+  merges or overwrites a conflicting destination.
 - **Accent color** follows Obsidian by default. Choose Indigo or another preset,
   or enter a custom `#RRGGBB` value and select **Save color**. Focus Flow adapts
   custom colors for both light and dark themes.

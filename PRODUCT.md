@@ -28,7 +28,7 @@ The plugin exposes Focus, Plan, Inbox, Distractions, and History modes in one Ob
 
 ## Capabilities and Constraints
 
-- Markdown beneath the configured vault root is the canonical source of truth; runtime indexes are rebuildable projections.
+- Markdown beneath the Active Workspace root is the canonical source of truth; runtime indexes are rebuildable projections. Multiple independent Workspaces may coexist in one vault, with exactly one active at a time.
 - The product is permanently personal and single-operator. It does not model teams, assignees, shared ownership, permissions, or real-time collaboration.
 - The Obsidian plugin is local-only and mobile-compatible, with no account, server, network client, telemetry, advertising, secret storage, or AI runtime.
 - Candidates become Epics, Stories, or retained Distractions through explicit Entry Review. Stories describe weekly-scale outcomes; Tasks describe concrete actions that fit within a day or less.

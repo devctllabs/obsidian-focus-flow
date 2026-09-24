@@ -61,12 +61,32 @@ export const TerminalNotesLast: Story = {
 
 export const FirstUseSetup: Story = {
   args: { controller: createSettingsController() },
-  play: async ({ canvasElement, args }) => {
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Set up' }));
-    // eslint-disable-next-line @typescript-eslint/unbound-method -- inspect the controller method as a Storybook spy
-    await expect(args.controller.requestRootSetup).toHaveBeenCalledWith('Focus Flow');
-    await expect(canvas.getByText('Focus Flow')).toBeVisible();
+    const dialog = within(canvasElement.ownerDocument.body);
+    await waitFor(() => expect(dialog.getByRole('button', { name: 'Create new workspace' })).toBeVisible());
+    await expect(dialog.getByRole('button', { name: 'Open existing workspace' })).toBeVisible();
+    await expect(dialog.queryByRole('button', { name: 'Move current workspace' })).not.toBeInTheDocument();
+    await userEvent.click(dialog.getByRole('button', { name: 'Create new workspace' }));
+    await expect(dialog.getByRole('searchbox', { name: 'Find a folder' })).toBeVisible();
+    await expect(dialog.getByLabelText('Folder name')).toHaveValue('FocusFlow');
+  },
+};
+
+export const ChangeWorkspaceChooser: Story = {
+  args: { controller: createSettingsController({ setupCompleted: true }) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Change…' }));
+    const dialog = within(canvasElement.ownerDocument.body);
+    const create = dialog.getByRole('button', { name: 'Create new workspace' });
+    await waitFor(() => expect(create).toBeVisible());
+    const copy = create.querySelector<HTMLElement>('.focus-flow__workspace-action-copy')!;
+    const [title, description] = [...copy.children].map((element) => element.getBoundingClientRect());
+    await expect(Math.abs(title!.left - description!.left)).toBeLessThan(2);
+    await expect(create.getBoundingClientRect().height).toBeGreaterThan(32);
+    await expect(dialog.getByText('Current workspace')).toBeVisible();
   },
 };
 
@@ -89,9 +109,10 @@ export const RootActionError: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Change…' }));
     const dialog = within(canvasElement.ownerDocument.body);
+    await userEvent.click(dialog.getByRole('button', { name: 'Move current workspace' }));
     await userEvent.clear(dialog.getByRole('textbox', { name: 'Folder name' }));
     await userEvent.type(dialog.getByRole('textbox', { name: 'Folder name' }), 'My workspace');
-    await userEvent.click(dialog.getByRole('button', { name: 'Move folder' }));
+    await userEvent.click(dialog.getByRole('button', { name: 'Move workspace' }));
     await waitFor(() => expect(within(canvasElement.ownerDocument.body).getByText('Root move could not be completed.')).toBeVisible());
   },
 };

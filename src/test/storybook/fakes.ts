@@ -21,10 +21,14 @@ export function createSettingsController(
     appearance,
     getSettings: () => settings,
     updateSettings,
-    requestRootSetup: fn(async (root: string) => {
-      settings = { ...settings, rootFolder: root, setupCompleted: true };
-    }),
-    selectExistingRoot: fn(async (root: string) => {
+    previewRootSetup: fn(async (_intent: 'create' | 'open', root: string) => ({
+      root,
+      missingFolders: [],
+      missingTemplates: [],
+      warnings: [],
+      errors: [],
+    })),
+    confirmRootSetup: fn(async (_intent: 'create' | 'open', root: string) => {
       settings = { ...settings, rootFolder: root, setupCompleted: true };
     }),
     requestRootMove: fn(async (root: string) => {
@@ -38,7 +42,7 @@ export function createSettingsController(
       previewReopen: fn(),
       reopen: fn(),
     },
-    listFolders: () => ['Projects', 'Projects/Archive', 'Focus Flow', 'Focus Flow/Templates'],
+    listFolders: () => ['Projects', 'Projects/Archive', 'FocusFlow', 'FocusFlow/Templates'],
     listTemplateFiles: () => [settings.templates.candidate, settings.templates.task, settings.templates.retrospective],
   };
 }

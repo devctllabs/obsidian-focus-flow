@@ -121,7 +121,8 @@ describe('Focus Flow lifecycle', () => {
       await app.vault.create('Setup sandbox/Templates/Candidate.md', template);
     }, customTemplate);
     await browser.executeObsidianCommand('focus-flow:open-plan');
-    await browser.$('[aria-label="Workspace folder"]').setValue('Setup sandbox');
+    await browser.$('[aria-label="Open existing workspace"]').click();
+    await browser.$('[aria-label="Open folder Setup sandbox"]').click();
     await browser.$('button=Review setup').click();
     await browser.$('button=Use this workspace').click();
     await browser.$('.modal-title').waitForExist({ reverse: true });
@@ -178,6 +179,8 @@ describe('Focus Flow lifecycle', () => {
     await browser.executeObsidianCommand('focus-flow:open-focus');
 
     await expect(browser.$('.modal-title')).toHaveText('Set up Focus Flow');
+    await browser.$('[aria-label="Open existing workspace"]').click();
+    await browser.$('[aria-label="Open folder Focus Flow"]').click();
     await browser.$('button=Review setup').click();
     await expect(browser.$('button=Use this workspace')).toBeDisabled();
     await browser.keys('Escape');

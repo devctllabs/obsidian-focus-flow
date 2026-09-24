@@ -1,77 +1,92 @@
-import type { RootSetupPreview } from '../../application/root/root-workspace';
+import type { RootSetupPreview, WorkspaceSetupIntent } from '../../application/root/root-workspace';
 import { remapTemplates } from '../../application/root/root-workspace';
 import type { FocusFlowSettings } from '../../settings';
 import { useState } from 'react';
-import { VaultPathPicker } from './VaultPathPicker';
+import { VaultPathPickerContent } from './VaultPathPicker';
 import { formatErrorMessage } from '../ui/error-message';
+
+type TemplateKind = keyof FocusFlowSettings['templates'];
 
 export interface RootSetupController {
   settings: FocusFlowSettings;
   folders: readonly string[];
   files: readonly string[];
-  preview(root: string, templates: FocusFlowSettings['templates']): Promise<RootSetupPreview>;
-  confirm(root: string, templates: FocusFlowSettings['templates']): Promise<void>;
+  preview(intent: WorkspaceSetupIntent, root: string, templates: FocusFlowSettings['templates']): Promise<RootSetupPreview>;
+  confirm(intent: WorkspaceSetupIntent, root: string, templates: FocusFlowSettings['templates']): Promise<void>;
 }
 
-export function RootSetupSurface({ controller, onDone, onCancel }: { controller: RootSetupController; onDone: () => void; onCancel: () => void }) {
-  const [root, setRoot] = useState(controller.settings.rootFolder);
+export function RootSetupSurface({ controller, intent, initialRoot, onDone, onBack }: { controller: RootSetupController; intent: WorkspaceSetupIntent; initialRoot?: string; onDone: () => void; onBack: () => void }) {
+  const initialPath = initialRoot ?? controller.settings.rootFolder;
+  const [folder, setFolder] = useState(parentOf(initialPath));
+  const [name, setName] = useState(lastSegment(initialPath) || 'FocusFlow');
   const [overrides, setOverrides] = useState<Partial<FocusFlowSettings['templates']>>({});
-  const [picker, setPicker] = useState<'folder' | keyof FocusFlowSettings['templates'] | null>(null);
+  const [templatePicker, setTemplatePicker] = useState<TemplateKind | null>(null);
   const [preview, setPreview] = useState<RootSetupPreview | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const cleanRoot = root.trim().replace(/\\/g, '/').replace(/\/{2,}/g, '/');
-  const templates = { ...remapTemplates(controller.settings.templates, controller.settings.rootFolder, cleanRoot), ...overrides };
-  const changeRoot = (value: string) => { setRoot(value); setOverrides({}); setPreview(null); setError(null); };
-  const apply = async () => {
-    if (pending) return;
+  const templates = { ...remapTemplates(controller.settings.templates, controller.settings.rootFolder, setupRoot(intent, folder, name)), ...overrides };
+  const changeFolder = (path: string) => { setFolder(path); setOverrides({}); setError(null); };
+  const changeName = (value: string) => { setName(value); setOverrides({}); setError(null); };
+  const review = async (selectedFolder: string) => {
+    const selectedRoot = setupRoot(intent, selectedFolder, name);
+    const selectedTemplates = { ...remapTemplates(controller.settings.templates, controller.settings.rootFolder, selectedRoot), ...overrides };
     setPending(true); setError(null);
-    try {
-      if (!preview) setPreview(await controller.preview(cleanRoot, templates));
-      else { await controller.confirm(preview.root, templates); onDone(); }
-    } catch (cause) { setError(formatErrorMessage(cause, 'Could not set up this workspace. Review the folder and templates, then try again.')); }
+    try { setPreview(await controller.preview(intent, selectedRoot, selectedTemplates)); }
+    catch (cause) { setError(formatErrorMessage(cause, 'Could not review this workspace. Check the folder and templates, then try again.')); }
     finally { setPending(false); }
   };
-  const existing = controller.folders.includes(cleanRoot);
+  const confirm = async () => {
+    if (!preview) return;
+    setPending(true); setError(null);
+    try { await controller.confirm(intent, preview.root, templates); onDone(); }
+    catch (cause) { setError(formatErrorMessage(cause, 'Could not set up this workspace. Review the folder and templates, then try again.')); }
+    finally { setPending(false); }
+  };
   return <div className="focus-flow focus-flow__setup-surface">
-    <SetupForm root={root} templates={templates} files={controller.files} preview={preview} pending={pending} error={error} existing={existing} cleanRoot={cleanRoot} onRootChange={changeRoot} onOpenPicker={setPicker} onClearPreview={() => setPreview(null)} onCancel={onCancel} onSubmit={apply} />
-    <SetupPathPicker picker={picker} folders={controller.folders} files={controller.files} cleanRoot={cleanRoot} templates={templates} overrides={overrides} onClose={() => setPicker(null)} onChangeRoot={changeRoot} onChangeOverrides={setOverrides} onClearPreview={() => setPreview(null)} onClearError={() => setError(null)} />
+    {templatePicker
+      ? <TemplatePicker kind={templatePicker} folders={controller.folders} files={controller.files} templates={templates} overrides={overrides} onBack={() => setTemplatePicker(null)} onChange={(next) => { setOverrides(next); setError(null); }} />
+      : preview
+        ? <SetupReview intent={intent} preview={preview} pending={pending} error={error} onBack={() => { setPreview(null); setError(null); }} onConfirm={confirm} />
+        : <WorkspacePicker intent={intent} folder={folder} name={name} folders={controller.folders} files={controller.files} templates={templates} pending={pending} error={error} onFolderChange={changeFolder} onNameChange={changeName} onChooseTemplate={setTemplatePicker} onBack={onBack} onReview={review} />}
   </div>;
 }
 
-function SetupForm({ root, templates, files, preview, pending, error, existing, cleanRoot, onRootChange, onOpenPicker, onClearPreview, onCancel, onSubmit }: { root: string; templates: FocusFlowSettings['templates']; files: readonly string[]; preview: RootSetupPreview | null; pending: boolean; error: string | null; existing: boolean; cleanRoot: string; onRootChange: (root: string) => void; onOpenPicker: (picker: 'folder' | keyof FocusFlowSettings['templates']) => void; onClearPreview: () => void; onCancel: () => void; onSubmit: () => Promise<void> }) {
-  return <form className="focus-flow__setup" onSubmit={(event) => { event.preventDefault(); void onSubmit(); }}>
-    <p>Choose where your work lives. Use an existing Focus Flow folder or create a new one.</p>
-    <label>Workspace folder<input aria-label="Workspace folder" value={root} disabled={pending} onChange={(event) => onRootChange(event.currentTarget.value)} required /></label>
-    <button type="button" className="focus-flow__button-quiet" disabled={pending} onClick={() => onOpenPicker('folder')}>Browse folders…</button>
-    <p className="focus-flow__field-hint">{existing ? 'Existing files will be kept. Only missing folders and standard templates will be added.' : 'A folder will be created inside your vault. You can also enter a nested path.'}</p>
-    <details><summary>Templates</summary><p className="focus-flow__field-hint">Existing templates at these paths are reused as they are. Choose another Markdown file to use a custom template.</p>
-      {(Object.keys(templates) as Array<keyof typeof templates>).map((kind) => <button key={kind} className="focus-flow__template-row" type="button" aria-label={`Choose ${kind} template`} disabled={pending} onClick={() => onOpenPicker(kind)}><span>{kind[0]!.toUpperCase() + kind.slice(1)}</span><span title={templates[kind]}>{templates[kind]} · {files.includes(templates[kind]) ? 'Reuse' : 'Create'}</span></button>)}
-    </details>
-    <SetupPreview preview={preview} existing={existing} pending={pending} onEdit={onClearPreview} />
-    {error && <p role="alert">{error}</p>}
-    <footer><button type="button" disabled={pending} onClick={onCancel}>Cancel</button><button className="focus-flow__button-primary" disabled={pending || !cleanRoot || Boolean(preview?.errors.length)} type="submit">{setupAction(pending, preview, existing)}</button></footer>
-  </form>;
+function WorkspacePicker({ intent, folder, name, folders, files, templates, pending, error, onFolderChange, onNameChange, onChooseTemplate, onBack, onReview }: { intent: WorkspaceSetupIntent; folder: string; name: string; folders: readonly string[]; files: readonly string[]; templates: FocusFlowSettings['templates']; pending: boolean; error: string | null; onFolderChange: (path: string) => void; onNameChange: (name: string) => void; onChooseTemplate: (kind: TemplateKind) => void; onBack: () => void; onReview: (folder: string) => Promise<void> }) {
+  const create = intent === 'create';
+  return <section className="focus-flow__workspace-step">
+    <h3>{create ? 'Create new workspace' : 'Open existing workspace'}</h3>
+    <p>{create ? 'Choose a parent folder and name for the independent Workspace.' : 'Choose an existing Focus Flow folder. Existing files stay in place.'}</p>
+    <VaultPathPickerContent title="" folders={folders} initialFolder={folder} workspaceName={create ? name : undefined} onNameChange={create ? onNameChange : undefined} onFolderChange={onFolderChange} validateSelection={(path) => validateSetupTarget(intent, path, folders)} disabled={pending || create && invalidWorkspaceName(name)} error={error} action={pending ? 'Reviewing…' : 'Review setup'} secondaryAction={{ label: 'Back', onClick: onBack }} onClose={onBack} onChoose={(selectedFolder) => void onReview(selectedFolder)}>
+      <TemplateChoices templates={templates} files={files} disabled={pending} onChoose={onChooseTemplate} />
+    </VaultPathPickerContent>
+  </section>;
 }
 
-function SetupPreview({ preview, existing, pending, onEdit }: { preview: RootSetupPreview | null; existing: boolean; pending: boolean; onEdit: () => void }) {
-  if (!preview) return null;
-  return <section aria-label="Setup preview" aria-live="polite"><h3>{existing ? 'Use existing workspace' : 'Create workspace'}</h3><p>{preview.missingFolders.length} folders and {preview.missingTemplates.length} standard templates to create. Existing files will be kept.</p>{preview.warnings.map((warning) => <p key={warning}>{warning}</p>)}{preview.errors.length > 0 && <div role="alert">{preview.errors.map((problem) => <p key={problem}>{problem}</p>)}</div>}<button type="button" className="focus-flow__button-quiet" disabled={pending} onClick={onEdit}>Edit setup</button></section>;
+function TemplateChoices({ templates, files, disabled, onChoose }: { templates: FocusFlowSettings['templates']; files: readonly string[]; disabled: boolean; onChoose: (kind: TemplateKind) => void }) {
+  return <details className="focus-flow__setup-templates"><summary>Templates</summary><p className="focus-flow__field-hint">Existing templates at these paths are reused as they are. Choose another Markdown file to use a custom template.</p>
+    {(Object.keys(templates) as TemplateKind[]).map((kind) => <button key={kind} className="focus-flow__template-row" type="button" aria-label={`Choose ${kind} template`} disabled={disabled} onClick={() => onChoose(kind)}><span>{kind[0]!.toUpperCase() + kind.slice(1)}</span><span title={templates[kind]}>{templates[kind]} · {files.includes(templates[kind]) ? 'Reuse' : 'Create'}</span></button>)}
+  </details>;
 }
 
-function setupAction(pending: boolean, preview: RootSetupPreview | null, existing: boolean): string {
-  if (pending) return 'Working…';
-  if (!preview) return 'Review setup';
-  return existing ? 'Use this workspace' : 'Create workspace';
+function SetupReview({ intent, preview, pending, error, onBack, onConfirm }: { intent: WorkspaceSetupIntent; preview: RootSetupPreview; pending: boolean; error: string | null; onBack: () => void; onConfirm: () => Promise<void> }) {
+  return <section className="focus-flow__setup" aria-label="Setup preview" aria-live="polite"><div><h3>{intent === 'open' ? 'Use existing workspace' : 'Create workspace'}</h3><code>{preview.root}</code></div><p>{preview.missingFolders.length} folders and {preview.missingTemplates.length} standard templates to create. Existing files will be kept.</p>{preview.warnings.map((warning) => <p key={warning}>{warning}</p>)}{preview.errors.length > 0 && <div role="alert">{preview.errors.map((problem) => <p key={problem}>{problem}</p>)}</div>}{error && <p role="alert">{error}</p>}<footer><button type="button" disabled={pending} onClick={onBack}>Back</button><button className="focus-flow__button-primary" disabled={pending || preview.errors.length > 0} type="button" onClick={() => void onConfirm()}>{pending ? 'Working…' : intent === 'open' ? 'Use this workspace' : 'Create workspace'}</button></footer></section>;
 }
 
-function SetupPathPicker({ picker, folders, files, cleanRoot, templates, overrides, onClose, onChangeRoot, onChangeOverrides, onClearPreview, onClearError }: { picker: 'folder' | keyof FocusFlowSettings['templates'] | null; folders: readonly string[]; files: readonly string[]; cleanRoot: string; templates: FocusFlowSettings['templates']; overrides: Partial<FocusFlowSettings['templates']>; onClose: () => void; onChangeRoot: (root: string) => void; onChangeOverrides: (overrides: Partial<FocusFlowSettings['templates']>) => void; onClearPreview: () => void; onClearError: () => void }) {
-  if (!picker) return null;
-  const folderMode = picker === 'folder';
-  const choose = (path: string) => {
-    if (folderMode) onChangeRoot(path);
-    else { onChangeOverrides({ ...overrides, [picker]: path }); onClearPreview(); onClearError(); }
-    onClose();
-  };
-  return <VaultPathPicker title={folderMode ? 'Choose workspace folder' : `Choose ${picker} template`} folders={folders} files={folderMode ? undefined : files} initialFolder={folderMode ? cleanRoot : templates[picker].split('/').slice(0, -1).join('/')} action={folderMode ? 'Use this folder' : 'Use template'} onClose={onClose} onChoose={choose} />;
+function TemplatePicker({ kind, folders, files, templates, overrides, onBack, onChange }: { kind: TemplateKind; folders: readonly string[]; files: readonly string[]; templates: FocusFlowSettings['templates']; overrides: Partial<FocusFlowSettings['templates']>; onBack: () => void; onChange: (overrides: Partial<FocusFlowSettings['templates']>) => void }) {
+  const choose = (path: string) => { onChange({ ...overrides, [kind]: path }); onBack(); };
+  return <section className="focus-flow__workspace-step"><h3>{`Choose ${kind} template`}</h3><VaultPathPickerContent title="" folders={folders} files={files} initialFolder={parentOf(templates[kind])} action="Use template" secondaryAction={{ label: 'Back', onClick: onBack }} onClose={onBack} onChoose={choose} /></section>;
 }
+
+function setupRoot(intent: WorkspaceSetupIntent, folder: string, name: string): string {
+  return intent === 'create' ? [folder, name.trim()].filter(Boolean).join('/') : folder;
+}
+
+function validateSetupTarget(intent: WorkspaceSetupIntent, path: string, folders: readonly string[]): string | null {
+  if (!path) return intent === 'create' ? 'Enter a folder name.' : 'Choose an existing Workspace folder.';
+  if (intent === 'create') return folders.includes(path) ? 'That folder name is already in use here. Choose a different name.' : null;
+  return folders.includes(path) ? null : 'Choose an existing Workspace folder.';
+}
+
+function invalidWorkspaceName(name: string): boolean { return !name.trim() || /[/\\]/.test(name) || ['.', '..'].includes(name.trim()); }
+function parentOf(path: string): string { return path.split('/').slice(0, -1).join('/'); }
+function lastSegment(path: string): string { return path.split('/').at(-1) ?? ''; }

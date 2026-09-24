@@ -50,14 +50,14 @@ describe('RootWorkspaceService', () => {
   it('adopts existing custom templates and saves the explicitly selected paths', async () => {
     const context = setup({ Existing: 'folder', 'Shared/Capture.md': 'file' });
     const templates = { candidate: 'Shared/Capture.md', task: 'Existing/Templates/Task.md', retrospective: 'Existing/Templates/Retrospective.md' };
-    await context.service.confirmSetup('Existing', templates);
+    await context.service.confirmSetup('open', 'Existing', templates);
     expect(context.state().settings.templates).toEqual(templates);
     expect(context.storage.createFile).not.toHaveBeenCalledWith('Shared/Capture.md', expect.anything());
   });
 
   it('rejects missing custom template paths before creating workspace files', async () => {
     const context = setup();
-    await expect(context.service.confirmSetup('New', { ...DEFAULT_SETTINGS.templates, candidate: 'Missing/Custom.md' })).rejects.toThrow(/template.*Missing\/Custom.md/i);
+    await expect(context.service.confirmSetup('create', 'New', { ...DEFAULT_SETTINGS.templates, candidate: 'Missing/Custom.md' })).rejects.toThrow(/template.*Missing\/Custom.md/i);
     expect(context.storage.createFolder).not.toHaveBeenCalled();
     expect(context.saveState).not.toHaveBeenCalled();
   });
@@ -68,7 +68,7 @@ describe('RootWorkspaceService', () => {
       'Focus Flow/Templates/Candidate.md': 'file',
     });
 
-    const preview = await context.service.previewSetup('Focus Flow');
+    const preview = await context.service.previewSetup('open', 'Focus Flow');
     expect(preview.errors).toEqual([]);
     expect(preview.missingFolders).toContain('Focus Flow/Sprints');
     expect(preview.missingTemplates).toEqual([
@@ -78,7 +78,7 @@ describe('RootWorkspaceService', () => {
       'Focus Flow/Templates/Retrospective.md',
     ]);
 
-    await context.service.confirmSetup('Focus Flow');
+    await context.service.confirmSetup('open', 'Focus Flow');
 
     expect(context.storage.createFolder).toHaveBeenCalledWith(
       'Focus Flow/Sprints',
@@ -94,25 +94,45 @@ describe('RootWorkspaceService', () => {
     expect(context.state().settings.setupCompleted).toBe(true);
   });
 
-  it('allows warnings but blocks hard validation errors', async () => {
+  it('creates only at a missing path and keeps the previous workspace intact', async () => {
+    const context = setup({ FocusFlow: 'folder', Existing: 'folder' });
+
+    await expect(
+      context.service.previewSetup('create', 'Existing'),
+    ).resolves.toMatchObject({
+      errors: ['A folder already exists here. Open it as an existing workspace instead.'],
+    });
+
+    await context.service.confirmSetup('create', 'New Flow');
+
+    expect(context.paths.get('FocusFlow')).toBe('folder');
+    expect(context.paths.get('New Flow')).toBe('folder');
+    expect(context.state().settings.rootFolder).toBe('New Flow');
+  });
+
+  it('opens only an existing folder, allows warnings, and blocks hard validation errors', async () => {
     const context = setup({ Existing: 'folder', Broken: 'folder' });
     context.setValidation({ warnings: ['Missing Mission'], errors: [] });
-    await expect(context.service.selectExistingRoot('Existing')).resolves.toBeUndefined();
+    await expect(context.service.confirmSetup('open', 'Existing')).resolves.toBeUndefined();
     expect(context.state().settings.rootFolder).toBe('Existing');
 
     context.setValidation({ warnings: [], errors: ['Duplicate ID'] });
-    await expect(context.service.selectExistingRoot('Broken')).rejects.toThrow(
+    await expect(context.service.confirmSetup('open', 'Broken')).rejects.toThrow(
       'Duplicate ID',
     );
+
+    await expect(context.service.previewSetup('open', 'Missing')).resolves.toMatchObject({
+      errors: ['Choose an existing folder to open.'],
+    });
   });
 
   it('renames the whole root, remaps in-root templates, and clears recovery state', async () => {
-    const context = setup({ 'Focus Flow': 'folder' });
+    const context = setup({ FocusFlow: 'folder' });
 
     await context.service.moveRoot('Areas/Focus');
 
     expect(context.storage.renameRoot).toHaveBeenCalledWith(
-      'Focus Flow',
+      'FocusFlow',
       'Areas/Focus',
     );
     expect(context.state()).toMatchObject({
@@ -130,7 +150,7 @@ describe('RootWorkspaceService', () => {
   });
 
   it('resumes after rename when settings persistence was interrupted', async () => {
-    const context = setup({ 'Focus Flow': 'folder' });
+    const context = setup({ FocusFlow: 'folder' });
     let writes = 0;
     context.saveState.mockImplementation(async (replacement) => {
       writes += 1;
@@ -157,7 +177,7 @@ describe('RootWorkspaceService', () => {
   }>([
     {
       label: 'source only',
-      paths: { 'Focus Flow': 'folder' as const },
+      paths: { FocusFlow: 'folder' as const },
       renamed: 1,
     },
     {
@@ -168,7 +188,7 @@ describe('RootWorkspaceService', () => {
   ])('resumes a recoverable $label move state', async ({ paths, renamed }) => {
     const context = setup(paths);
     const pendingRootMove = {
-      sourceRoot: 'Focus Flow',
+      sourceRoot: 'FocusFlow',
       targetRoot: 'Areas/Focus',
       templates: DEFAULT_SETTINGS.templates,
     };
@@ -188,7 +208,7 @@ describe('RootWorkspaceService', () => {
     {
       label: 'both roots',
       paths: {
-        'Focus Flow': 'folder' as const,
+        FocusFlow: 'folder' as const,
         'Areas/Focus': 'folder' as const,
       },
     },
@@ -197,7 +217,7 @@ describe('RootWorkspaceService', () => {
     const context = setup(paths);
     Object.assign(context.state(), {
       pendingRootMove: {
-        sourceRoot: 'Focus Flow',
+        sourceRoot: 'FocusFlow',
         targetRoot: 'Areas/Focus',
         templates: DEFAULT_SETTINGS.templates,
       },
@@ -212,7 +232,7 @@ describe('RootWorkspaceService', () => {
   it('finishes marker cleanup when the target setting was already saved', async () => {
     const context = setup({ 'Areas/Focus': 'folder' });
     const pendingRootMove = {
-      sourceRoot: 'Focus Flow',
+      sourceRoot: 'FocusFlow',
       targetRoot: 'Areas/Focus',
       templates: DEFAULT_SETTINGS.templates,
     };

@@ -1,7 +1,8 @@
 import { App, Modal, Setting } from 'obsidian';
 import { createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { RootSetupSurface, type RootSetupController } from '../../features/settings/RootSetupSurface';
+import type { RootSetupController } from '../../features/settings/RootSetupSurface';
+import { WorkspaceChangeSurface } from '../../features/settings/WorkspaceChangeSurface';
 
 export function confirmRootSetup(
   app: App,
@@ -63,7 +64,11 @@ class RootSetupModal extends Modal {
   onOpen(): void {
     this.setTitle('Set up Focus Flow');
     this.root = createRoot(this.contentEl);
-    this.root.render(createElement(RootSetupSurface, { controller: this.controller, onDone: () => this.finish(true), onCancel: () => this.finish(false) }));
+    this.root.render(createElement(WorkspaceChangeSurface, {
+      controller: this.controller,
+      allowMove: false,
+      onDone: () => this.finish(true),
+    }));
   }
 
   onClose(): void {

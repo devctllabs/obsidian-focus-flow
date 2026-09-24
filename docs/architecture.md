@@ -9,7 +9,7 @@ durable domain store. Collaborative ownership and remote integrations require
 different product boundaries rather than optional fields inside this plugin.
 
 ```text
-Markdown notes in configured root
+Markdown notes in Active Workspace root
               │
               ▼
       Obsidian vault adapters
@@ -25,7 +25,7 @@ React ItemViews     Native Obsidian UI
 Focus/Plan/...      commands/settings/menus
 ```
 
-The configured root also owns the optional `TAGS.md` Tag Catalog. It is read
+The Active Workspace root also owns the optional `TAGS.md` Tag Catalog. It is read
 beside the work index rather than parsed as a work entity; plugin settings
 remain host configuration, not Workspace authority. Its managed frontmatter
 owns catalog membership, descriptions, and colors, while its Markdown body is
@@ -377,7 +377,13 @@ frozen history remain independent of current catalog membership.
 
 Simple fields use native `PluginSettingTab` and `Setting`. Writes are serialized; a failed save keeps the prior durable value and reports an inline error. English strings remain plain constants; no i18n runtime is included until a second locale is supported.
 
-Root onboarding and migration are application use cases, not raw settings writes. They preflight paths, preserve existing files/templates, use Vault APIs, update the setting only after a successful move/adoption, and then rebuild the index.
+Workspace creation, selection, and relocation are application use cases, not
+raw settings writes. Create requires a missing root. Open requires an existing
+root and completes only missing standard structure. Both preserve the previous
+Workspace and then rebuild the index and reload its Tag Catalog. Move renames
+the whole Active Workspace through the Vault API and retains the transient
+forward-recovery protocol. Exactly one Workspace root is active at a time;
+other independent Workspaces may remain in the vault.
 
 Only Candidate, Task, and Retrospective body-template paths are runtime
 settings. Standard Epic and Story templates are user/agent conventions,

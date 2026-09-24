@@ -8,6 +8,10 @@ Focus Flow is a personal work-management system that connects long-term directio
 One coherent collection of a person's Mission, Candidates, work hierarchy, Sprints, and Review History.
 _Avoid_: Vault, Project
 
+**Active Workspace**:
+The one Workspace currently selected for Focus Flow indexing, commands, and views. Other Workspaces may coexist in the same vault without being moved or merged.
+_Avoid_: Current folder, only Workspace
+
 **Mission**:
 The personal direction used to reflect on whether work deserves attention.
 _Avoid_: Goal, vision statement

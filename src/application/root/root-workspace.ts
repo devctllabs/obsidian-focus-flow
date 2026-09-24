@@ -52,6 +52,8 @@ export interface RootSetupPreview {
   errors: readonly string[];
 }
 
+export type WorkspaceSetupIntent = 'create' | 'open';
+
 export function parsePendingRootMove(input: unknown): PendingRootMove | null {
   if (!isRecord(input) || !isRecord(input.pendingRootMove)) return null;
   const plan = input.pendingRootMove;
@@ -83,11 +85,21 @@ export class RootWorkspaceService {
     private readonly saveState: (state: RootWorkspaceState) => Promise<void>,
   ) {}
 
-  async previewSetup(input: string, templates?: FocusFlowSettings['templates']): Promise<RootSetupPreview> {
+  async previewSetup(intent: WorkspaceSetupIntent, input: string, templates?: FocusFlowSettings['templates']): Promise<RootSetupPreview> {
     const root = normalizeRoot(input);
     const missingFolders: string[] = [];
     const missingTemplates: string[] = [];
     const errors: string[] = [];
+    const rootKind = await this.storage.kind(root);
+    if (intent === 'create' && rootKind !== 'missing') {
+      errors.push('A folder already exists here. Open it as an existing workspace instead.');
+    }
+    if (intent === 'open' && rootKind !== 'folder') {
+      errors.push('Choose an existing folder to open.');
+    }
+    if (errors.length > 0) {
+      return { root, missingFolders, missingTemplates, warnings: [], errors };
+    }
     await inspectRootFolders(this.storage, root, missingFolders, errors);
     await inspectStandardTemplates(this.storage, root, missingTemplates, errors);
     if (templates) await inspectSelectedTemplates(this.storage, root, templates, errors);
@@ -102,8 +114,8 @@ export class RootWorkspaceService {
     };
   }
 
-  async confirmSetup(input: string, templates?: FocusFlowSettings['templates']): Promise<void> {
-    const preview = await this.previewSetup(input, templates);
+  async confirmSetup(intent: WorkspaceSetupIntent, input: string, templates?: FocusFlowSettings['templates']): Promise<void> {
+    const preview = await this.previewSetup(intent, input, templates);
     assertNoErrors(preview.errors);
     for (const path of preview.missingFolders) {
       await this.storage.createFolder(path);
@@ -117,20 +129,6 @@ export class RootWorkspaceService {
     const state = this.getState();
     await this.saveState({
       settings: { ...settingsForRoot(state.settings, preview.root), ...(templates ? { templates: { candidate: normalizeRoot(templates.candidate), task: normalizeRoot(templates.task), retrospective: normalizeRoot(templates.retrospective) } } : {}) },
-      pendingRootMove: null,
-    });
-  }
-
-  async selectExistingRoot(input: string): Promise<void> {
-    const root = normalizeRoot(input);
-    if ((await this.storage.kind(root)) !== 'folder') {
-      throw new Error('The selected Focus Flow root must be an existing folder.');
-    }
-    const validation = await this.storage.validate(root);
-    assertNoErrors(validation.errors);
-    const state = this.getState();
-    await this.saveState({
-      settings: settingsForRoot(state.settings, root),
       pendingRootMove: null,
     });
   }
