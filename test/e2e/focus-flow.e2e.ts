@@ -981,12 +981,12 @@ describe('Focus Flow lifecycle', () => {
       ),
     );
     await moveTask(addedTaskKey!, 'In Progress', 'today');
-    const warning = browser.$('.focus-flow__move-message');
-    await warning.waitForExist();
-    await expect(warning).toHaveText(
+    const confirmation = browser.$('[role="dialog"]');
+    await confirmation.waitForExist();
+    await expect(confirmation).toHaveText(
       expect.stringContaining('exceeds its WIP limit by 1'),
     );
-    await warning.$('button=Move anyway').click();
+    await confirmation.$('button=Move anyway').click();
     await browser.waitUntil(async () =>
       (await readVaultFile(addedTaskPath)).includes('status: in_progress'),
     );

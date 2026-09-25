@@ -6,6 +6,7 @@ import type {
 import type { ProjectedManagedEntity } from '../../application/indexing/work-index';
 import type { CreateTaskResult } from '../../application/work/create-work';
 import type { TaskCreationDetails } from '../../application/work/create-work';
+import { isCurrentPriorDone } from '../../application/planning/sprint-scope';
 import { TaskFieldsEditor } from '../work/TaskFieldsEditor';
 import { SprintTiming } from '../planning/SprintTiming';
 import { compareRank } from '../../domain/ordering';
@@ -19,6 +20,7 @@ import { formatErrorMessage } from '../ui/error-message';
 import {
   BoardDragAdapter,
   BoardDragSurface,
+  type BoardDropOutcome,
 } from '../planning/BoardDragAdapter';
 import { StoryFilter } from './StoryFilter';
 import { DialogSurface } from '../ui/DialogSurface';
@@ -26,7 +28,7 @@ import { WorkTitleButton } from '../work/WorkTitleButton';
 import { OutcomeEditor } from '../work/OutcomeEditor';
 import type { EditableOutcome, EditOutcomeRequest } from '../../application/work/edit-outcome';
 import { ActionMenu, MenuAction } from '../ui/ActionMenu';
-import { CheckIcon, ChevronIcon, PlayIcon, PlusIcon } from '../ui/Icons';
+import { CheckIcon, ChevronIcon, GripIcon, PlayIcon, PlusIcon } from '../ui/Icons';
 
 type Sprint = Extract<ProjectedManagedEntity, { type: 'sprint' }>;
 type Story = Extract<ProjectedManagedEntity, { type: 'story' }>;
@@ -80,7 +82,7 @@ function ReadyFocusView({
   const [editing, setEditing] = useState<EditableOutcome | null>(null);
   const boardRef = useRef<HTMLElement>(null);
   const [compact, setCompact] = useState(false);
-  const movement = useTaskMovement(onMoveTask);
+  const movement = useTaskMovement(onMoveTask, model.tasks);
 
   useEffect(() => {
     const element = boardRef.current;
@@ -98,9 +100,10 @@ function ReadyFocusView({
 
   return <section className="focus-flow__mode focus-flow__focus-board" ref={boardRef}>
       <FocusSprintHeader onReviewSprint={onReviewSprint} sprint={model.sprint} />
-      <MoveMessage {...movement} pending={pending} />
+      <MoveMessage message={movement.message} />
+      <MoveConfirmationDialog {...movement} pending={pending} />
       <FocusToolbar allStatuses={allStatuses} compact={compact} dragEnabled={dragEnabled} onAllStatusesChange={setAllStatuses} onStoryFilterChange={setStoryFilter} selectedFilter={selectedFilter} stories={model.stories} />
-      <FocusBoards compact={compact} completedBeforeSprint={model.completedBeforeSprint} dragEnabled={dragEnabled} mobileStatus={mobileStatus} onMobileStatusChange={setMobileStatus} onMove={movement.move} onMoveTask={onMoveTask} onOpenNote={onOpenNote} pending={pending} renderCreateTask={storyActions} renderEditTask={itemActions} statuses={statuses} stories={visibleStories} tasks={visibleTasks} />
+      <FocusBoards compact={compact} completedBeforeSprint={model.completedBeforeSprint} dragEnabled={dragEnabled} mobileStatus={mobileStatus} onMobileStatusChange={setMobileStatus} onMove={movement.move} onMoveFromDrag={movement.moveFromDrag} onMoveTask={onMoveTask} onOpenNote={onOpenNote} pending={pending} renderCreateTask={storyActions} renderEditTask={itemActions} statuses={statuses} stories={visibleStories} tasks={visibleTasks} />
       <OutcomeEditDialog editing={editing} entities={entities} onClose={() => setEditing(null)} onEditOutcome={onEditOutcome} />
     </section>;
 }
@@ -113,9 +116,9 @@ function FocusToolbar({ stories, selectedFilter, onStoryFilterChange, dragEnable
   return <div className="focus-flow__board-toolbar">{stories.length > 1 && <StoryFilter stories={stories} value={selectedFilter} onChange={onStoryFilterChange} />}{dragEnabled && !compact && <label className="focus-flow__board-toggle"><input checked={allStatuses} onChange={(event) => onAllStatusesChange(event.currentTarget.checked)} type="checkbox" /> All statuses</label>}</div>;
 }
 
-function FocusBoards(props: { compact: boolean; completedBeforeSprint: ReadonlySet<string>; dragEnabled: boolean; mobileStatus: TaskStatus; onMobileStatusChange: (status: TaskStatus) => void; onMove: (request: MoveTaskRequest) => Promise<void>; onMoveTask?: FocusViewProps['onMoveTask']; onOpenNote?: FocusViewProps['onOpenNote']; pending: boolean; renderCreateTask: (story: Story) => ReactNode; renderEditTask: (task: Task) => ReactNode; statuses: readonly TaskStatus[]; stories: readonly Story[]; tasks: readonly Task[] }) {
+function FocusBoards(props: { compact: boolean; completedBeforeSprint: ReadonlySet<string>; dragEnabled: boolean; mobileStatus: TaskStatus; onMobileStatusChange: (status: TaskStatus) => void; onMove: (request: MoveTaskRequest) => Promise<BoardDropOutcome>; onMoveFromDrag: (request: MoveTaskRequest) => Promise<BoardDropOutcome>; onMoveTask?: FocusViewProps['onMoveTask']; onOpenNote?: FocusViewProps['onOpenNote']; pending: boolean; renderCreateTask: (story: Story) => ReactNode; renderEditTask: (task: Task) => ReactNode; statuses: readonly TaskStatus[]; stories: readonly Story[]; tasks: readonly Task[] }) {
   const disabled = props.pending || !props.onMoveTask;
-  if (props.dragEnabled && !props.compact) return <DesktopBoard renderEditTask={props.renderEditTask} renderCreateTask={props.renderCreateTask} completedBeforeSprint={props.completedBeforeSprint} onMove={props.onMove} onOpenNote={props.onOpenNote} pending={disabled} stories={props.stories} tasks={props.tasks} statuses={props.statuses} />;
+  if (props.dragEnabled && !props.compact) return <DesktopBoard renderEditTask={props.renderEditTask} renderCreateTask={props.renderCreateTask} completedBeforeSprint={props.completedBeforeSprint} onMove={props.onMove} onMoveFromDrag={props.onMoveFromDrag} onOpenNote={props.onOpenNote} pending={disabled} stories={props.stories} tasks={props.tasks} statuses={props.statuses} />;
   return <MobileBoard renderEditTask={props.renderEditTask} renderCreateTask={props.renderCreateTask} completedBeforeSprint={props.completedBeforeSprint} onMove={props.onMove} onOpenNote={props.onOpenNote} onStatusChange={props.onMobileStatusChange} pending={disabled} status={props.mobileStatus} stories={props.stories} tasks={props.tasks} />;
 }
 
@@ -133,32 +136,73 @@ function visibleFocusModel(model: ReadyFocusModel, storyFilter: string, allStatu
   return { selectedFilter, visibleStories, visibleTasks, statuses };
 }
 
-function useTaskMovement(onMoveTask: FocusViewProps['onMoveTask']) {
-  const [confirmation, setConfirmation] = useState<MoveTaskRequest | null>(null);
+interface MoveConfirmation {
+  request: MoveTaskRequest;
+  message: string;
+  resolveDrag?: (outcome: BoardDropOutcome) => void;
+}
+
+function useTaskMovement(onMoveTask: FocusViewProps['onMoveTask'], tasks: readonly Task[]) {
+  const [confirmation, setConfirmation] = useState<MoveConfirmation | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const move = async (request: MoveTaskRequest): Promise<void> => {
-    if (onMoveTask === undefined) return;
+  const [confirming, setConfirming] = useState(false);
+  const perform = async (request: MoveTaskRequest, waitForConfirmation: boolean): Promise<BoardDropOutcome> => {
+    if (onMoveTask === undefined) return 'reverted';
     setMessage(null);
     try {
       const result = await onMoveTask(request);
       if (result.kind === 'confirmation-required') {
-        setConfirmation(request);
-        setMessage(result.message);
-        return;
+        if (!waitForConfirmation) {
+          setConfirmation({ request, message: result.message });
+          return 'reverted';
+        }
+        return await new Promise<BoardDropOutcome>((resolveDrag) => {
+          setConfirmation({ request, message: result.message, resolveDrag });
+        });
       }
       setConfirmation(null);
       setMessage(result.kind === 'rejected' ? result.message : null);
+      return result.kind === 'moved' ? 'committed' : 'reverted';
     } catch (error) {
       setConfirmation(null);
       setMessage(formatErrorMessage(error, 'Focus Flow could not move the Task'));
+      return 'reverted';
     }
   };
-  return { confirmation, message, move };
+  const move = (request: MoveTaskRequest) => perform(request, false);
+  const moveFromDrag = (request: MoveTaskRequest) => perform(request, true);
+  const confirm = async () => {
+    if (confirmation === null || confirming) return;
+    const pendingConfirmation = confirmation;
+    setConfirming(true);
+    try {
+      const outcome = await perform({ ...pendingConfirmation.request, confirmWipExcess: true }, false);
+      pendingConfirmation.resolveDrag?.(outcome);
+    }
+    finally { setConfirming(false); }
+  };
+  const cancel = () => {
+    if (confirming || confirmation === null) return;
+    confirmation.resolveDrag?.('reverted');
+    setConfirmation(null);
+  };
+  const task = confirmation === null ? undefined : tasks.find((candidate) => candidate.id === confirmation.request.taskId);
+  return { cancel, confirm, confirming, confirmation, message, move, moveFromDrag, task };
 }
 
-function MoveMessage({ message, confirmation, move, pending }: ReturnType<typeof useTaskMovement> & { pending: boolean }) {
+function MoveMessage({ message }: { message: string | null }) {
   if (!message) return null;
-  return <div className="focus-flow__move-message" role="alert"><span>{message}</span>{confirmation && <button disabled={pending} onClick={() => void move({ ...confirmation, confirmWipExcess: true })} type="button">Move anyway</button>}</div>;
+  return <div className="focus-flow__move-message" role="alert"><span>{message}</span></div>;
+}
+
+function MoveConfirmationDialog({ confirmation, task, confirming, pending, cancel, confirm }: ReturnType<typeof useTaskMovement> & { pending: boolean }) {
+  if (confirmation === null) return null;
+  return <DialogSurface title={`Move ${task?.key ?? 'Task'} despite WIP limit?`} description={confirmation.message} onClose={cancel}>
+    <div className="focus-flow__dialog-actions">
+      <button disabled={pending || confirming} onClick={cancel} type="button">Cancel</button>
+      <button className="focus-flow__button-primary" disabled={pending || confirming} onClick={() => void confirm()} type="button">{pending || confirming ? 'Moving…' : 'Move anyway'}</button>
+    </div>
+  </DialogSurface>;
 }
 
 function TaskCreationPanel({
@@ -249,6 +293,7 @@ function DesktopBoard({
   completedBeforeSprint,
   pending,
   onMove,
+  onMoveFromDrag,
   onOpenNote,
   statuses,
   renderCreateTask,
@@ -258,7 +303,8 @@ function DesktopBoard({
   tasks: readonly Task[];
   completedBeforeSprint: ReadonlySet<string>;
   pending: boolean;
-  onMove: (request: MoveTaskRequest) => Promise<void>;
+  onMove: (request: MoveTaskRequest) => Promise<BoardDropOutcome>;
+  onMoveFromDrag: (request: MoveTaskRequest) => Promise<BoardDropOutcome>;
   onOpenNote?: FocusViewProps['onOpenNote'];
   statuses: readonly TaskStatus[];
   renderCreateTask: (story: Story) => ReactNode;
@@ -269,21 +315,37 @@ function DesktopBoard({
     initialGroup: string,
     targetGroup: string,
     targetIndex: number,
-  ): void => {
+  ): Promise<BoardDropOutcome> => {
     const source = parseTaskGroup(initialGroup);
     const target = parseTaskGroup(targetGroup);
     if (source === null || target === null || source.storyId !== target.storyId) {
-      return;
+      return Promise.resolve('reverted');
     }
     const storyTasks = tasksForStory(tasks, target.storyId);
     const task = storyTasks.find((candidate) => candidate.id === taskId);
-    if (task) {
-      void onMove(createMoveRequest(storyTasks, task, target.status, targetIndex));
-    }
+    return task
+      ? onMoveFromDrag(createMoveRequest(storyTasks, task, target.status, targetIndex))
+      : Promise.resolve('reverted');
+  };
+
+  const canPreviewMove = (_taskId: string, initialGroup: string, targetGroup: string) => {
+    const source = parseTaskGroup(initialGroup);
+    const target = parseTaskGroup(targetGroup);
+    return source !== null && target !== null && source.storyId === target.storyId;
+  };
+
+  const renderDragOverlay = (taskId: string) => {
+    const task = tasks.find((candidate) => candidate.id === taskId);
+    if (task === undefined) return null;
+    const storyTasks = tasksForStory(tasks, task.storyId);
+    return <div aria-hidden="true" className="focus-flow__board-task-item" inert>
+      <button className="focus-flow__drag-handle" disabled tabIndex={-1} type="button"><GripIcon /></button>
+      <TaskCard completedBeforeSprint={completedBeforeSprint} onMove={onMove} onOpenNote={onOpenNote} pending renderEditTask={renderEditTask} storyTasks={storyTasks} task={task} />
+    </div>;
   };
 
   return (
-    <BoardDragSurface onMove={moveFromDrag}>
+    <BoardDragSurface canPreviewMove={canPreviewMove} onMove={moveFromDrag} renderOverlay={renderDragOverlay}>
       <section aria-label="Sprint kanban board" className="focus-flow__kanban" style={{ '--ff-columns': statuses.length } as CSSProperties} tabIndex={0}>
         <div className="focus-flow__kanban-content">
           <div className="focus-flow__kanban-grid focus-flow__kanban-headings">
@@ -331,7 +393,7 @@ function MobileBoard({
   status: TaskStatus;
   completedBeforeSprint: ReadonlySet<string>;
   pending: boolean;
-  onMove: (request: MoveTaskRequest) => Promise<void>;
+  onMove: (request: MoveTaskRequest) => Promise<BoardDropOutcome>;
   onOpenNote?: FocusViewProps['onOpenNote'];
   onStatusChange: (status: TaskStatus) => void;
   renderCreateTask: (story: Story) => ReactNode;
@@ -377,7 +439,7 @@ function TaskList({
   dragEnabled: boolean;
   pending: boolean;
   completedBeforeSprint: ReadonlySet<string>;
-  onMove: (request: MoveTaskRequest) => Promise<void>;
+  onMove: (request: MoveTaskRequest) => Promise<BoardDropOutcome>;
   onOpenNote?: FocusViewProps['onOpenNote'];
 }) {
   const visible = tasksForStatus(storyTasks, status);
@@ -399,7 +461,7 @@ function TaskList({
   );
 }
 
-function reorderHandler(visible: readonly Task[], storyTasks: readonly Task[], status: TaskStatus, onMove: (request: MoveTaskRequest) => Promise<void>) {
+function reorderHandler(visible: readonly Task[], storyTasks: readonly Task[], status: TaskStatus, onMove: (request: MoveTaskRequest) => Promise<BoardDropOutcome>) {
   if (visible.length <= 1) return undefined;
   return (taskId: string, targetIndex: number) => {
     const task = visible.find((candidate) => candidate.id === taskId);
@@ -412,7 +474,7 @@ function TaskCard({ task, storyTasks, completedBeforeSprint, pending, onMove, on
   storyTasks: readonly Task[];
   completedBeforeSprint: ReadonlySet<string>;
   pending: boolean;
-  onMove: (request: MoveTaskRequest) => Promise<void>;
+  onMove: (request: MoveTaskRequest) => Promise<BoardDropOutcome>;
   onOpenNote?: FocusViewProps['onOpenNote'];
   renderEditTask: (task: Task) => ReactNode;
 }) {
@@ -489,10 +551,15 @@ function focusModel(entities: readonly ProjectedManagedEntity[]) {
     (entity): entity is Task =>
       entity.type === 'task' && storyIds.has(entity.storyId),
   );
-  const completedBeforeSprint = new Set(
+  const completedAtStart = new Set(
     sprint.startSnapshot.stories.flatMap((story) =>
       story.tasks.filter((task) => task.completedBeforeSprint).map((task) => task.id),
     ),
+  );
+  const completedBeforeSprint = new Set(
+    tasks
+      .filter((task) => isCurrentPriorDone(task, completedAtStart.has(task.id), sprint.startedAt))
+      .map((task) => task.id),
   );
   return { kind: 'ready' as const, sprint, stories, tasks, completedBeforeSprint };
 }

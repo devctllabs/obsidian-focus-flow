@@ -173,6 +173,27 @@ describe('FocusView', () => {
     expect(screen.getByRole('region', { name: 'FF-42 On Hold tasks' })).toBeInTheDocument();
   });
 
+  it('stops presenting a reopened prior-Done Task as historical context', async () => {
+    const user = userEvent.setup();
+    const reopened = {
+      ...oldDone,
+      lifecycle: 'active' as const,
+      status: 'todo' as const,
+      completedAt: null,
+      path: 'Focus Flow/Tasks/FF-45 task.md',
+    };
+    render(
+      <FocusView
+        dragEnabled={false}
+        entities={entities.map((entity) => entity.id === oldDone.id ? reopened : entity)}
+      />,
+    );
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Task column' }), 'todo');
+    expect(screen.getByText('FF-45 task')).toBeInTheDocument();
+    expect(screen.queryByText('Done before Sprint')).not.toBeInTheDocument();
+  });
+
   it('starts a Today Task directly through the normal movement contract', async () => {
     const user = userEvent.setup();
     const onMoveTask = vi.fn().mockResolvedValue({ kind: 'moved' });
@@ -222,13 +243,45 @@ describe('FocusView', () => {
     });
   });
 
+  it('offers every earlier status when reopening a Done Task', async () => {
+    const user = userEvent.setup();
+    const onMoveTask = vi.fn().mockResolvedValue({ kind: 'moved' });
+    render(
+      <FocusView
+        dragEnabled={false}
+        entities={entities}
+        onMoveTask={onMoveTask}
+      />,
+    );
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Task column' }), 'done');
+    await user.click(screen.getByRole('button', { name: 'More actions for FF-45' }));
+    const menu = screen.getByRole('menu');
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Move to TODO',
+      'Move to Tomorrow',
+      'Move to Today',
+      'Move to In Progress',
+      'Move to External In Progress',
+      'Move to On Hold',
+    ]);
+
+    await user.click(within(menu).getByRole('menuitem', { name: 'Move to TODO' }));
+    expect(onMoveTask).toHaveBeenCalledWith({
+      taskId: oldDone.id,
+      targetStatus: 'todo',
+      beforeTaskId: todo.id,
+      afterTaskId: null,
+      confirmWipExcess: false,
+    });
+  });
+
   it('asks before confirming soft WIP and retries the same move', async () => {
     const user = userEvent.setup();
     const onMoveTask = vi
       .fn()
       .mockResolvedValueOnce({
         kind: 'confirmation-required',
-        excess: 1,
         message: 'Moving to Today exceeds its WIP limit by 1.',
       })
       .mockResolvedValueOnce({ kind: 'moved' });
@@ -243,14 +296,41 @@ describe('FocusView', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Task column' }), 'todo');
     await user.click(screen.getByRole('button', { name: 'More actions for FF-43' }));
     await user.click(screen.getByRole('menuitem', { name: 'Move to Today' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
+    const dialog = await screen.findByRole('dialog', { name: 'Move FF-43 despite WIP limit?' });
+    expect(dialog).toHaveTextContent(
       'Moving to Today exceeds its WIP limit by 1.',
     );
 
-    await user.click(screen.getByRole('button', { name: 'Move anyway' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Move anyway' }));
     expect(onMoveTask).toHaveBeenLastCalledWith(
       expect.objectContaining({ confirmWipExcess: true }),
     );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('cancels a soft WIP move from the dialog without retrying it', async () => {
+    const user = userEvent.setup();
+    const onMoveTask = vi.fn().mockResolvedValue({
+      kind: 'confirmation-required',
+      message: 'Moving to Today exceeds its WIP limit by 1.',
+    });
+    render(
+      <FocusView
+        dragEnabled={false}
+        entities={entities}
+        onMoveTask={onMoveTask}
+      />,
+    );
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Task column' }), 'todo');
+    await user.click(screen.getByRole('button', { name: 'More actions for FF-43' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Move to Today' }));
+    await screen.findByRole('dialog', { name: 'Move FF-43 despite WIP limit?' });
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onMoveTask).toHaveBeenCalledTimes(1);
   });
 
   it('creates a Task without a reason and confirms soft Sprint Scope WIP', async () => {

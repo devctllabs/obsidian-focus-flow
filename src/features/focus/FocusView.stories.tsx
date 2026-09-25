@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
-import { activeSprint, activeStory, doneTask, readyFocusEntities, secondTask, story } from '../../test/storybook/fixtures';
+import { activeSprint, activeStory, doneTask, readyFocusEntities, secondTask, story, task } from '../../test/storybook/fixtures';
 import { withHostFrame } from '../../test/storybook/host-frames';
 import type { MoveTaskRequest, MoveTaskResult } from '../../application/focus/focus-board';
+import type { ProjectedManagedEntity } from '../../application/indexing/work-index';
 import type { CreateTaskResult } from '../../application/work/create-work';
 import { FocusView } from './FocusView';
 import { expectChildrenInside } from '../../test/storybook/layout-assertions';
@@ -43,6 +45,109 @@ export const Loaded: Story = {
   },
 };
 
+export const SmoothCrossColumnDragRegression: Story = {
+  render: () => <SmoothTaskDragHarness />,
+  tags: ['!autodocs'],
+  play: async ({ canvasElement }) => {
+    const { document, target, targetBounds, view } = await dragSecondTaskToTodo(canvasElement);
+    const handoff = observeDragHandoff(document, target, view, secondTask.id);
+    try {
+      const overlay = document.querySelector<HTMLElement>(`[data-board-drag-overlay="${secondTask.id}"]`);
+      await expect(overlay).toBeVisible();
+      await expect(overlay).toHaveAttribute('data-board-drag-target-group', `${activeStory.id}:todo`);
+      await new Promise((resolve) => view.setTimeout(resolve, 300));
+      const landedOverlay = document.querySelector<HTMLElement>(`[data-board-drag-overlay="${secondTask.id}"]`)!;
+      const overlayBounds = landedOverlay.getBoundingClientRect();
+      await expect(overlayBounds.left).toBeGreaterThanOrEqual(targetBounds.left - 1);
+      await expect(overlayBounds.right).toBeLessThanOrEqual(targetBounds.right + 1);
+
+      await waitFor(async () => {
+        await expect(document.querySelector(`[data-board-drag-overlay="${secondTask.id}"]`)).not.toBeInTheDocument();
+        await expect(within(target).getByText('Verify the weekly signal')).toBeVisible();
+      });
+      await new Promise((resolve) => view.requestAnimationFrame(resolve));
+    } finally {
+      handoff.stop();
+    }
+
+    await expect(handoff.frames.length).toBeGreaterThan(0);
+    await expect(handoff.frames.every((frame) => frame.visibleCopies === 1)).toBe(true);
+    await expect(handoff.frames.some((frame) => frame.slot && frame.canonicalInTarget)).toBe(false);
+    await expect(Math.max(...handoff.frames.map((frame) => frame.rowHeight))).toBeLessThanOrEqual(handoff.initialRowHeight + 1);
+  },
+};
+
+export const SmoothDragSoftWipCancel: Story = {
+  render: () => <FocusView dragEnabled entities={readyFocusEntities} onMoveTask={async () => ({ kind: 'confirmation-required', message: 'Moving to TODO exceeds its WIP limit by 1.' })} />,
+  tags: ['!autodocs'],
+  play: async ({ canvasElement }) => {
+    const { document, target, user } = await dragSecondTaskToTodo(canvasElement);
+    const body = within(document.body);
+    const dialog = await body.findByRole('dialog', { name: 'Move FF-44 despite WIP limit?' });
+    await expect(dialog).toHaveTextContent('exceeds its WIP limit');
+    await expect(document.querySelector(`[data-board-drag-overlay="${secondTask.id}"]`)).toBeVisible();
+    await expect(within(target).queryByText('Verify the weekly signal')).not.toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(async () => {
+      await expect(body.queryByRole('dialog')).not.toBeInTheDocument();
+      await expect(document.querySelector(`[data-board-drag-overlay="${secondTask.id}"]`)).not.toBeInTheDocument();
+      await expect(body.getByRole('region', { name: 'FF-42 Today tasks' })).toHaveTextContent('Verify the weekly signal');
+    });
+  },
+};
+
+async function dragSecondTaskToTodo(canvasElement: HTMLElement) {
+  const document = canvasElement.ownerDocument;
+  const view = document.defaultView!;
+  const canvas = within(canvasElement);
+  const handle = canvas.getByRole('button', { name: 'Drag FF-44 Verify the weekly signal' });
+  const target = canvas.getByRole('region', { name: 'FF-42 TODO tasks' });
+  const user = userEvent.setup();
+  const handleBounds = handle.getBoundingClientRect();
+  const targetBounds = target.getBoundingClientRect();
+
+  await user.pointer({ keys: '[MouseLeft>]', target: handle, coords: { clientX: handleBounds.x + handleBounds.width / 2, clientY: handleBounds.y + handleBounds.height / 2 } });
+  await user.pointer({ target, coords: { clientX: targetBounds.x + targetBounds.width / 2, clientY: targetBounds.y + 48 } });
+  await new Promise((resolve) => view.requestAnimationFrame(() => view.requestAnimationFrame(resolve)));
+  await user.pointer({ keys: '[/MouseLeft]', target, coords: { clientX: targetBounds.x + targetBounds.width / 2, clientY: targetBounds.y + 48 } });
+  return { document, target, targetBounds, user, view };
+}
+
+function observeDragHandoff(document: Document, target: HTMLElement, view: Window, taskId: string) {
+  const frames: Array<{ canonicalInTarget: boolean; rowHeight: number; slot: boolean; visibleCopies: number }> = [];
+  const initialRowHeight = target.getBoundingClientRect().height;
+  let active = true;
+  const sample = () => {
+    const copies = Array.from(document.querySelectorAll<HTMLElement>(`[data-board-drag-id="${taskId}"], [data-board-drag-overlay="${taskId}"]`));
+    frames.push({
+      canonicalInTarget: target.querySelector(`[data-board-drag-id="${taskId}"]`) !== null,
+      rowHeight: target.getBoundingClientRect().height,
+      slot: target.querySelector('[data-board-drop-slot]') !== null,
+      visibleCopies: copies.filter((element) => {
+        const style = getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity) !== 0;
+      }).length,
+    });
+    if (active) view.requestAnimationFrame(sample);
+  };
+  sample();
+  return { frames, initialRowHeight, stop: () => { active = false; } };
+}
+
+function SmoothTaskDragHarness() {
+  const [entities, setEntities] = useState<readonly ProjectedManagedEntity[]>(readyFocusEntities);
+  const move = async (request: MoveTaskRequest): Promise<MoveTaskResult> => {
+    await new Promise((resolve) => window.setTimeout(resolve, 800));
+    setEntities((current) => current.map((entity) => entity.type === 'task' && entity.id === request.taskId
+      ? { ...entity, status: request.targetStatus, lifecycle: request.targetStatus === 'done' ? 'done' : 'active' }
+      : entity));
+    return { kind: 'moved' };
+  };
+  return <FocusView dragEnabled entities={entities} onMoveTask={move} />;
+}
+
 export const NoActiveSprint: Story = { args: { entities: [], dragEnabled: false } };
 
 export const MultipleActiveSprints: Story = {
@@ -63,6 +168,15 @@ export const PriorDoneTask: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await expect(canvas.getByText('Done before Sprint')).toBeVisible();
+  },
+};
+
+export const ReopenedPriorDoneTask: Story = {
+  args: { entities: [activeSprint, activeStory, task], dragEnabled: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await expect(canvas.getByText('Draft the review')).toBeVisible();
+    await expect(canvas.queryByText('Done before Sprint')).not.toBeInTheDocument();
   },
 };
 
@@ -88,14 +202,15 @@ export const MobileSingleStatus: Story = {
 
 export const MoveSoftWipConfirmation: Story = {
   args: {
-    onMoveTask: fn(async (_request: MoveTaskRequest) => ({ kind: 'confirmation-required' as const, excess: 1, message: 'Moving to In Progress exceeds its WIP limit by 1.' })),
+    onMoveTask: fn(async (_request: MoveTaskRequest) => ({ kind: 'confirmation-required' as const, message: 'Moving to In Progress exceeds its WIP limit by 1.' })),
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole('button', { name: 'More actions for FF-44' }));
     await userEvent.click(within(canvasElement.ownerDocument.body).getByRole('menuitem', { name: 'Move to In Progress' }));
-    await expect(canvas.getByRole('alert')).toHaveTextContent('exceeds its WIP limit');
-    await userEvent.click(canvas.getByRole('button', { name: 'Move anyway' }));
+    const dialog = canvas.getByRole('dialog', { name: 'Move FF-44 despite WIP limit?' });
+    await expect(dialog).toHaveTextContent('exceeds its WIP limit');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Move anyway' }));
     await expect(args.onMoveTask).toHaveBeenCalledTimes(2);
   },
 };

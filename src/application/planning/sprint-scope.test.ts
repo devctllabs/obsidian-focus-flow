@@ -37,6 +37,21 @@ describe('activeSprintScope', () => {
     ]);
   });
 
+  it('counts a prior-Done Task after it is reopened or completed again during the Sprint', () => {
+    const initialTasks = [{ id: 'before', completedBeforeSprint: true }];
+    const reopened = fixture(
+      [task('before', 'todo', null)],
+      initialTasks,
+    );
+    const completedAgain = fixture(
+      [task('before', 'done', '2026-08-24T08:30:01Z')],
+      initialTasks,
+    );
+
+    expect([...activeSprintScope(reopened)!.taskIds]).toEqual(['before']);
+    expect([...activeSprintScope(completedAgain)!.taskIds]).toEqual(['before']);
+  });
+
   it('returns null unless exactly one matching Active Sprint exists', () => {
     const snapshot = fixture([]);
     expect(activeSprintScope({ ...snapshot, entities: snapshot.entities.slice(1) })).toBeNull();

@@ -24,6 +24,20 @@ export function startingSprintScopeCount(
   ).length;
 }
 
+export function isCurrentPriorDone(
+  task: Pick<TaskEntity, 'status' | 'completedAt'>,
+  completedBeforeSprint: boolean,
+  sprintStartedAt: string,
+): boolean {
+  if (task.status !== 'done') return false;
+  const startedAt = Date.parse(sprintStartedAt);
+  const completedAt = task.completedAt === null ? Number.NaN : Date.parse(task.completedAt);
+  return (
+    (Number.isFinite(startedAt) && Number.isFinite(completedAt) && completedAt <= startedAt) ||
+    (completedBeforeSprint && !Number.isFinite(completedAt))
+  );
+}
+
 export function activeSprintScope(
   snapshot: WorkIndexSnapshot,
   expectedSprintId?: string,
@@ -62,7 +76,6 @@ export function activeSprintScope(
       .filter((task) => task.completedBeforeSprint)
       .map((task) => task.id),
   );
-  const startedAt = Date.parse(sprint.startedAt);
   const taskIds = new Set(
     initialTasks
       .filter((task) => !task.completedBeforeSprint)
@@ -70,14 +83,7 @@ export function activeSprintScope(
   );
   for (const entity of snapshot.entities) {
     if (entity.type !== 'task' || !storyIds.has(entity.storyId)) continue;
-    const completedAt =
-      entity.completedAt === null ? Number.NaN : Date.parse(entity.completedAt);
-    if (
-      completedBeforeSprint.has(entity.id) ||
-      (Number.isFinite(startedAt) &&
-        Number.isFinite(completedAt) &&
-        completedAt <= startedAt)
-    ) {
+    if (isCurrentPriorDone(entity, completedBeforeSprint.has(entity.id), sprint.startedAt)) {
       continue;
     }
     taskIds.add(entity.id);

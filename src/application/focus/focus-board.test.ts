@@ -10,6 +10,7 @@ const sprintId = '01994744-a401-759a-b582-4418f2f2405f';
 const storyId = '019946f1-8d2a-7f05-87b1-1eebbb476300';
 const movingTaskId = '01994706-857c-76f1-8006-85cd9bd80890';
 const fixedNow = '2026-08-31T10:00:00.000Z';
+type Task = Extract<WorkIndexSnapshot['entities'][number], { type: 'task' }>;
 
 function task(
   id: string,
@@ -22,7 +23,7 @@ function task(
     | 'done',
   taskRank: string,
   startedAt: string | null = null,
-) {
+): Task {
   return {
     id,
     key: `FF-${id.at(-1)}`,
@@ -86,6 +87,43 @@ function snapshot(
   };
 }
 
+function snapshotWithPriorDone(
+  moving: ReturnType<typeof task>,
+  otherTasks: ReturnType<typeof task>[] = [],
+): WorkIndexSnapshot {
+  const base = snapshot([moving, ...otherTasks]);
+  const activeSprint = base.entities[0];
+  if (activeSprint?.type !== 'sprint' || activeSprint.lifecycle !== 'active') throw new Error('Expected Active Sprint fixture.');
+  return {
+    ...base,
+    entities: [{
+      ...activeSprint,
+      startSnapshot: {
+        ...activeSprint.startSnapshot,
+        stories: [{
+          id: storyId,
+          key: 'FF-42',
+          title: 'Improve weekly focus',
+          epicId: '019946c9-5f97-7196-8483-73469275ff90',
+          sprintRank: 'a0',
+          acceptanceCriteriaHash: `sha256:${'a'.repeat(64)}`,
+          acceptanceCriteria: [],
+          effectiveTags: [],
+          tasks: [{
+            id: moving.id,
+            key: moving.key,
+            title: moving.title,
+            taskRank: moving.taskRank,
+            status: 'done',
+            completedBeforeSprint: true,
+            effectiveTags: [],
+          }],
+        }],
+      },
+    }, ...base.entities.slice(1)],
+  };
+}
+
 function setup(current: WorkIndexSnapshot) {
   const writer: TaskMovementWriter = { move: vi.fn().mockResolvedValue(undefined) };
   const index = {
@@ -97,6 +135,7 @@ function setup(current: WorkIndexSnapshot) {
     index,
     () => fixedNow,
     () => ({
+      sprintScope: { mode: 'soft', limit: 28 },
       tomorrow: { mode: 'soft', limit: 7 },
       today: { mode: 'soft', limit: 7 },
       inProgress: { mode: 'soft', limit: 1 },
@@ -229,6 +268,38 @@ describe('FocusBoardService', () => {
     );
   });
 
+  it('reopens a Done Task into the selected earlier status', async () => {
+    const completedAt = '2026-08-30T18:00:00.000Z';
+    const startedAt = '2026-08-30T09:00:00.000Z';
+    const moving = {
+      ...task(movingTaskId, 'done', 'a0', startedAt),
+      completedAt,
+      path: 'Focus Flow/Tasks/Archive/2026/08/FF-0 Task 0.md',
+    };
+    const { service, writer } = setup(snapshot([moving]));
+
+    await service.moveTask({
+      taskId: moving.id,
+      targetStatus: 'today',
+      beforeTaskId: null,
+      afterTaskId: null,
+      confirmWipExcess: false,
+    });
+
+    expect(writer.move).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedLifecycle: 'done',
+        replacementLifecycle: 'active',
+        expectedStatus: 'done',
+        replacementStatus: 'today',
+        expectedStartedAt: startedAt,
+        replacementStartedAt: startedAt,
+        expectedCompletedAt: completedAt,
+        replacementCompletedAt: null,
+      }),
+    );
+  });
+
   it('requires confirmation before exceeding a soft WIP limit', async () => {
     const moving = task(movingTaskId, 'today', 'a1');
     const occupied = task('01994706-857c-76f1-8006-85cd9bd80891', 'in_progress', 'a0');
@@ -244,7 +315,6 @@ describe('FocusBoardService', () => {
       }),
     ).resolves.toEqual({
       kind: 'confirmation-required',
-      excess: 1,
       message: 'Moving to In Progress exceeds its WIP limit by 1.',
     });
     expect(writer.move).not.toHaveBeenCalled();
@@ -263,6 +333,7 @@ describe('FocusBoardService', () => {
       },
       () => fixedNow,
       () => ({
+        sprintScope: { mode: 'soft', limit: 28 },
         tomorrow: { mode: 'soft', limit: 7 },
         today: { mode: 'soft', limit: 7 },
         inProgress: { mode: 'hard', limit: 1 },
@@ -299,6 +370,73 @@ describe('FocusBoardService', () => {
     ).resolves.toEqual({
       kind: 'rejected',
       message: 'FF-0 can move from TODO only to Tomorrow or Today.',
+    });
+    expect(writer.move).not.toHaveBeenCalled();
+  });
+
+  it('confirms Sprint Scope and destination soft WIP excess together when reopening prior-Done work', async () => {
+    const moving = {
+      ...task(movingTaskId, 'done', 'a1'),
+      completedAt: '2026-08-30T18:00:00.000Z',
+    };
+    const occupied = task('01994706-857c-76f1-8006-85cd9bd80891', 'today', 'a0');
+    const current = snapshotWithPriorDone(moving, [occupied]);
+    const writer: TaskMovementWriter = { move: vi.fn().mockResolvedValue(undefined) };
+    const service = new FocusBoardService(
+      writer,
+      { refresh: vi.fn().mockResolvedValue(undefined), getSnapshot: () => current },
+      () => fixedNow,
+      () => ({
+        sprintScope: { mode: 'soft', limit: 1 },
+        tomorrow: { mode: 'soft', limit: 7 },
+        today: { mode: 'soft', limit: 1 },
+        inProgress: { mode: 'soft', limit: 1 },
+      }),
+    );
+    const request = {
+      taskId: moving.id,
+      targetStatus: 'today' as const,
+      beforeTaskId: occupied.id,
+      afterTaskId: null,
+      confirmWipExcess: false,
+    };
+
+    await expect(service.moveTask(request)).resolves.toEqual({
+      kind: 'confirmation-required',
+      message: 'Moving this Task exceeds WIP limits: Sprint scope by 1; Today by 1.',
+    });
+    expect(writer.move).not.toHaveBeenCalled();
+
+    await expect(service.moveTask({ ...request, confirmWipExcess: true })).resolves.toEqual({ kind: 'moved' });
+    expect(writer.move).toHaveBeenCalledOnce();
+  });
+
+  it('rejects reopening prior-Done work when Sprint Scope has a hard WIP limit', async () => {
+    const moving = { ...task(movingTaskId, 'done', 'a1'), completedAt: '2026-08-30T18:00:00.000Z' };
+    const occupied = task('01994706-857c-76f1-8006-85cd9bd80891', 'today', 'a0');
+    const current = snapshotWithPriorDone(moving, [occupied]);
+    const writer: TaskMovementWriter = { move: vi.fn() };
+    const service = new FocusBoardService(
+      writer,
+      { refresh: vi.fn().mockResolvedValue(undefined), getSnapshot: () => current },
+      () => fixedNow,
+      () => ({
+        sprintScope: { mode: 'hard', limit: 1 },
+        tomorrow: { mode: 'soft', limit: 7 },
+        today: { mode: 'soft', limit: 7 },
+        inProgress: { mode: 'soft', limit: 1 },
+      }),
+    );
+
+    await expect(service.moveTask({
+      taskId: moving.id,
+      targetStatus: 'todo',
+      beforeTaskId: null,
+      afterTaskId: null,
+      confirmWipExcess: true,
+    })).resolves.toEqual({
+      kind: 'rejected',
+      message: 'Sprint scope has a hard WIP limit of 1.',
     });
     expect(writer.move).not.toHaveBeenCalled();
   });

@@ -11,12 +11,14 @@ import {
   TASK_STATUS_LABELS,
 } from '../../domain/task-flow';
 import type { TaskStatus } from '../../domain/work-note';
-import { evaluateWip, type WipPolicy } from '../../domain/wip-policy';
+import { evaluateWip, type WipDecision, type WipPolicy } from '../../domain/wip-policy';
+import { activeSprintScope } from '../planning/sprint-scope';
 
 type Task = Extract<ProjectedManagedEntity, { type: 'task' }>;
 type TaskLifecycle = Task['lifecycle'];
 
 export interface FocusWipPolicies {
+  sprintScope: WipPolicy;
   tomorrow: WipPolicy;
   today: WipPolicy;
   inProgress: WipPolicy;
@@ -32,7 +34,7 @@ export interface MoveTaskRequest {
 
 export type MoveTaskResult =
   | { kind: 'moved' }
-  | { kind: 'confirmation-required'; excess: number; message: string }
+  | { kind: 'confirmation-required'; message: string }
   | { kind: 'rejected'; message: string };
 
 export interface TaskMovementPlan {
@@ -88,13 +90,14 @@ export class FocusBoardService {
     const transitionError = rejectedTransition(moving, request.targetStatus, changesStatus);
     if (transitionError) return transitionError;
 
-    const wipDecision = evaluateDestinationWip(
+    const wipViolations = evaluateMoveWip({
+      snapshot,
       activeTasks,
       moving,
-      request.targetStatus,
-      this.getWipPolicies(),
-    );
-    const wipResult = moveWipResult(wipDecision, request);
+      targetStatus: request.targetStatus,
+      policies: this.getWipPolicies(),
+    });
+    const wipResult = moveWipResult(wipViolations, request);
     if (wipResult) return wipResult;
 
     const { before, after } = destinationNeighbors(
@@ -119,10 +122,56 @@ function rejectedTransition(moving: Task, target: TaskStatus, changesStatus: boo
   return { kind: 'rejected', message: invalidTransitionMessage(moving) };
 }
 
-function moveWipResult(decision: ReturnType<typeof evaluateDestinationWip>, request: MoveTaskRequest): MoveTaskResult | null {
-  if (decision?.kind === 'reject') return { kind: 'rejected', message: `${TASK_STATUS_LABELS[request.targetStatus]} has a hard WIP limit of ${decision.limit}.` };
-  if (decision?.kind === 'confirm' && !request.confirmWipExcess) return { kind: 'confirmation-required', excess: decision.excess, message: `Moving to ${TASK_STATUS_LABELS[request.targetStatus]} exceeds its WIP limit by ${decision.excess}.` };
-  return null;
+function moveWipResult(violations: readonly MoveWipViolation[], request: MoveTaskRequest): MoveTaskResult | null {
+  const hard = violations.filter((violation) => violation.decision.kind === 'reject');
+  if (hard.length === 1) return { kind: 'rejected', message: `${hard[0]!.label} has a hard WIP limit of ${hard[0]!.limit}.` };
+  if (hard.length > 1) return { kind: 'rejected', message: `Moving this Task would exceed hard WIP limits: ${hard.map((violation) => `${violation.label} (limit ${violation.limit})`).join('; ')}.` };
+  const soft = violations.filter((violation) => violation.decision.kind === 'confirm');
+  if (soft.length === 0 || request.confirmWipExcess) return null;
+  if (soft.length === 1) {
+    const violation = soft[0]!;
+    const message = violation.kind === 'destination'
+      ? `Moving to ${violation.label} exceeds its WIP limit by ${violation.decision.excess}.`
+      : `Moving this Task exceeds Sprint scope WIP by ${violation.decision.excess}.`;
+    return { kind: 'confirmation-required', message };
+  }
+  return { kind: 'confirmation-required', message: `Moving this Task exceeds WIP limits: ${soft.map((violation) => `${violation.label} by ${violation.decision.excess}`).join('; ')}.` };
+}
+
+interface MoveWipViolation {
+  kind: 'scope' | 'destination';
+  label: string;
+  limit: number;
+  decision: Exclude<WipDecision, { kind: 'allow' }>;
+}
+
+function evaluateMoveWip({ snapshot, activeTasks, moving, targetStatus, policies }: {
+  snapshot: WorkIndexSnapshot;
+  activeTasks: readonly Task[];
+  moving: Task;
+  targetStatus: TaskStatus;
+  policies: FocusWipPolicies;
+}): MoveWipViolation[] {
+  const violations: MoveWipViolation[] = [];
+  const scope = activeSprintScope(snapshot);
+  if (targetStatus !== 'done' && scope !== null && !scope.taskIds.has(moving.id)) {
+    const violation = wipViolation('scope', 'Sprint scope', policies.sprintScope, scope.count + 1);
+    if (violation) violations.push(violation);
+  }
+  if (moving.status !== targetStatus) {
+    const policy = policyForStatus(targetStatus, policies);
+    if (policy !== null) {
+      const proposedCount = activeTasks.filter((task) => task.status === targetStatus).length + 1;
+      const violation = wipViolation('destination', TASK_STATUS_LABELS[targetStatus], policy, proposedCount);
+      if (violation) violations.push(violation);
+    }
+  }
+  return violations;
+}
+
+function wipViolation(kind: MoveWipViolation['kind'], label: string, policy: WipPolicy, proposedCount: number): MoveWipViolation | null {
+  const decision = evaluateWip(policy, proposedCount);
+  return decision.kind === 'allow' ? null : { kind, label, limit: policy.limit, decision };
 }
 
 function taskMovementPlan({ moving, request, bounds, changesStatus, movedAt }: { moving: Task; request: MoveTaskRequest; bounds: { before: Task | undefined; after: Task | undefined }; changesStatus: boolean; movedAt: string }): TaskMovementPlan {
@@ -138,7 +187,7 @@ function taskMovementPlan({ moving, request, bounds, changesStatus, movedAt }: {
     expectedStartedAt: moving.startedAt,
     replacementStartedAt: replacementStartedAt(moving, request.targetStatus, changesStatus, movedAt),
     expectedCompletedAt: moving.completedAt,
-    replacementCompletedAt: changesStatus && request.targetStatus === 'done' ? movedAt : moving.completedAt,
+    replacementCompletedAt: replacementCompletedAt(moving, request.targetStatus, changesStatus, movedAt),
   };
 }
 
@@ -154,6 +203,12 @@ function replacementRank(moving: Task, bounds: { before: Task | undefined; after
 
 function replacementStartedAt(moving: Task, target: TaskStatus, changesStatus: boolean, movedAt: string): string | null {
   return changesStatus && target === 'in_progress' && moving.startedAt === null ? movedAt : moving.startedAt;
+}
+
+function replacementCompletedAt(moving: Task, target: TaskStatus, changesStatus: boolean, movedAt: string): string | null {
+  if (!changesStatus) return moving.completedAt;
+  if (target === 'done') return movedAt;
+  return moving.status === 'done' ? null : moving.completedAt;
 }
 
 function canonicalRankBounds(
@@ -211,25 +266,6 @@ function uniqueTask(tasks: readonly Task[], taskId: string): Task {
     throw new Error('Task does not belong to the Active Sprint.');
   }
   return matches[0]!;
-}
-
-function evaluateDestinationWip(
-  activeTasks: readonly Task[],
-  moving: Task,
-  targetStatus: TaskStatus,
-  policies: FocusWipPolicies,
-):
-  | { kind: 'confirm'; excess: number; limit: number }
-  | { kind: 'reject'; excess: number; limit: number }
-  | null {
-  if (moving.status === targetStatus) return null;
-  const policy = policyForStatus(targetStatus, policies);
-  if (policy === null) return null;
-
-  const proposedCount =
-    activeTasks.filter((task) => task.status === targetStatus).length + 1;
-  const decision = evaluateWip(policy, proposedCount);
-  return decision.kind === 'allow' ? null : { ...decision, limit: policy.limit };
 }
 
 function policyForStatus(
