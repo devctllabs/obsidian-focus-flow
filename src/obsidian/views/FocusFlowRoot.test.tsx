@@ -1,6 +1,6 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WorkIndexSnapshot } from '../../application/indexing/work-index';
 import { FocusFlowRoot } from './FocusFlowRoot';
 import { TagCatalogService } from '../../application/tags/tag-catalog';
@@ -19,6 +19,8 @@ function settingsWithCatalog(tagCatalog: TagCatalogService) {
     hasPendingRootMove: () => false,
   };
 }
+
+afterEach(() => vi.useRealTimers());
 
 describe('FocusFlowRoot', () => {
   it('applies shared accent previews to the plugin root', () => {
@@ -123,17 +125,65 @@ describe('FocusFlowRoot', () => {
   });
 
   it('offers an explicit refresh with pending feedback', async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers();
     const snapshot: WorkIndexSnapshot = { phase: 'ready', entities: [], diagnostics: [] };
     let finish!: () => void;
     const refresh = vi.fn(() => new Promise<void>((resolve) => { finish = resolve; }));
     render(<FocusFlowRoot index={{ getSnapshot: () => snapshot, subscribe: () => () => undefined, refresh }} mode="inbox" onModeChange={vi.fn()} repairService={{ execute: vi.fn() }} />);
-    await user.click(screen.getByRole('button', { name: 'Refresh notes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh notes' }));
     expect(refresh).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Refreshing notes…' })).toBeDisabled();
     await act(async () => finish());
+    expect(screen.getByRole('button', { name: 'Refreshing notes…' })).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(700); });
     expect(screen.getByRole('button', { name: 'Refresh notes' })).toBeEnabled();
   });
+
+  it('keeps a quick refresh visibly busy for one spin', async () => {
+    vi.useFakeTimers();
+    const snapshot: WorkIndexSnapshot = { phase: 'ready', entities: [], diagnostics: [] };
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    render(<FocusFlowRoot index={{ getSnapshot: () => snapshot, subscribe: () => () => undefined, refresh }} mode="inbox" onModeChange={vi.fn()} repairService={{ execute: vi.fn() }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh notes' }));
+    expect(screen.getByRole('button', { name: 'Refreshing notes…' })).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(699); });
+    expect(screen.getByRole('button', { name: 'Refreshing notes…' })).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(screen.getByRole('button', { name: 'Refresh notes' })).toBeEnabled();
+  });
+
+  it('keeps refresh errors after the minimum busy interval', async () => {
+    vi.useFakeTimers();
+    const snapshot: WorkIndexSnapshot = { phase: 'ready', entities: [], diagnostics: [] };
+    const refresh = vi.fn().mockRejectedValue(new Error('Vault is unavailable'));
+    render(<FocusFlowRoot index={{ getSnapshot: () => snapshot, subscribe: () => () => undefined, refresh }} mode="inbox" onModeChange={vi.fn()} repairService={{ execute: vi.fn() }} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh notes' }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(699); });
+    expect(screen.getByRole('button', { name: 'Refreshing notes…' })).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(screen.getByRole('alert')).toHaveTextContent('Vault is unavailable');
+    expect(screen.getByRole('button', { name: 'Refresh notes' })).toBeEnabled();
+  });
+
+  it('skips the artificial busy interval when reduced motion is preferred', async () => {
+    vi.useFakeTimers();
+    const originalMatchMedia = window.matchMedia?.bind(window);
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: vi.fn(() => ({ matches: true })) });
+    try {
+      const snapshot: WorkIndexSnapshot = { phase: 'ready', entities: [], diagnostics: [] };
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      render(<FocusFlowRoot index={{ getSnapshot: () => snapshot, subscribe: () => () => undefined, refresh }} mode="inbox" onModeChange={vi.fn()} repairService={{ execute: vi.fn() }} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Refresh notes' }));
+      await act(async () => { await Promise.resolve(); });
+      expect(screen.getByRole('button', { name: 'Refresh notes' })).toBeEnabled();
+    } finally {
+      Object.defineProperty(window, 'matchMedia', { configurable: true, value: originalMatchMedia });
+    }
+  });
+
   it('runs Candidate triage and disables workflow actions while pending', async () => {
     const user = userEvent.setup();
     const candidate = {

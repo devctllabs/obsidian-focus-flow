@@ -1082,8 +1082,9 @@ body[data-focus-flow-theme='dark'] .focus-flow[data-ff-accent='custom'],
 .focus-flow .focus-flow__epic-picker [role="option"] { overflow-wrap: anywhere; }
 .focus-flow .focus-flow__sprint-transfer { display: inline-flex; align-items: center; gap: .15rem; }
 @media (prefers-reduced-motion: no-preference) {
-  .focus-flow__refresh[aria-busy='true'] svg { animation: ff-refresh 1s linear infinite; }
+  .focus-flow__refresh[aria-busy='true'] svg { animation: ff-refresh 700ms linear infinite; }
 }
+.focus-flow .focus-flow__refresh svg { transform-box: fill-box; transform-origin: center; }
 @keyframes ff-refresh { to { transform: rotate(360deg); } }
 
 /* Catalog colors decorate the tag; the host theme remains responsible for text contrast. */

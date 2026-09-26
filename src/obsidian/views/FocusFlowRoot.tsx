@@ -152,11 +152,22 @@ function useRefreshRunner(index: FocusFlowRootProps['index'], setError: (error: 
   const run = async () => {
     if (pending) return;
     setPending(true);
-    try { await index.refresh?.(); }
+    try {
+      const [refreshResult] = await Promise.allSettled([
+        index.refresh?.(),
+        refreshSpinDelay(),
+      ]);
+      if (refreshResult.status === 'rejected') throw refreshResult.reason;
+    }
     catch (cause) { setError(formatErrorMessage(cause, 'Could not refresh notes. Try Refresh again.')); }
     finally { setPending(false); }
   };
   return { pending, run };
+}
+
+function refreshSpinDelay() {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  return new Promise<void>((resolve) => window.setTimeout(resolve, 700));
 }
 
 type CatalogAfter = <Result>(operation: () => Promise<Result>, tags: readonly string[], previousTags?: readonly string[], wasSaved?: (result: Result) => boolean) => Promise<Result>;
