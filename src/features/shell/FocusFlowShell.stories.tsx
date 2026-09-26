@@ -45,7 +45,7 @@ type Story = StoryObj<typeof meta>;
 
 // Synthetic, deterministic work: a complete workspace for visual review.
 export const Loaded: Story = {
-  render: (args) => <WorkspacePreview {...args} />,
+  render: (args) => <InteractiveWorkspacePreview {...args} />,
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByRole('button', { name: 'Capture Candidate' })).toBeVisible();
   },
@@ -84,8 +84,6 @@ export const AccentColor: Story = {
     await expect(canvas.getByRole('textbox', { name: 'Custom accent HEX' })).toHaveValue('#0F766E');
   },
 };
-
-export const RefreshPending: Story = { args: { indexState: { phase: 'ready', entities: readyFocusEntities, diagnostics: [] }, refreshing: true } };
 
 export const TaskEditing: Story = {
   render: (args) => <WorkspacePreview {...args} />,
@@ -252,6 +250,17 @@ function WorkspacePreview(args: ComponentProps<typeof FocusFlowShell>) {
     }}
     settingsSurface={<SettingsSurface controller={settingsController} />}
     indexState={{ phase: 'ready', diagnostics: [], entities }} /></TagCatalogProvider></AppearanceProvider>;
+}
+
+function InteractiveWorkspacePreview(args: ComponentProps<typeof FocusFlowShell>) {
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = () => {
+    args.onRefresh?.();
+    setRefreshing(true);
+    const delay = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 700;
+    window.setTimeout(() => setRefreshing(false), delay);
+  };
+  return <WorkspacePreview {...args} onRefresh={refresh} refreshing={refreshing} />;
 }
 
 type PreviewEntities = NonNullable<ComponentProps<typeof FocusFlowShell>['indexState']>['entities'];
