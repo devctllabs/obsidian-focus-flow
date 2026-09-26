@@ -2,8 +2,8 @@ import { readFile, stat } from 'node:fs/promises';
 import process from 'node:process';
 
 const expectedArtifacts = ['main.js', 'manifest.json', 'styles.css'];
-const [packageJson, manifest, versions] = await Promise.all(
-  ['package.json', 'manifest.json', 'versions.json'].map(async (path) =>
+const [packageJson, manifest] = await Promise.all(
+  ['package.json', 'manifest.json'].map(async (path) =>
     JSON.parse(await readFile(path, 'utf8')),
   ),
 );
@@ -11,10 +11,6 @@ const [packageJson, manifest, versions] = await Promise.all(
 assert(
   packageJson.version === manifest.version,
   'package.json and manifest.json versions must match.',
-);
-assert(
-  versions[manifest.version] === manifest.minAppVersion,
-  'versions.json must map the release version to minAppVersion.',
 );
 assert(manifest.isDesktopOnly === false, 'The release must remain mobile-compatible.');
 

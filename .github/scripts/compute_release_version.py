@@ -99,7 +99,6 @@ def require_absent_tag(tag: str, runner: Runner = run_command) -> None:
 def require_plugin_version(expected_version: str) -> None:
     package = json.loads((REPOSITORY_ROOT / "package.json").read_text(encoding="utf-8"))
     manifest = json.loads((REPOSITORY_ROOT / "manifest.json").read_text(encoding="utf-8"))
-    versions = json.loads((REPOSITORY_ROOT / "versions.json").read_text(encoding="utf-8"))
 
     if package.get("version") != expected_version:
         raise RuntimeError(
@@ -108,10 +107,6 @@ def require_plugin_version(expected_version: str) -> None:
     if manifest.get("version") != expected_version:
         raise RuntimeError(
             f"manifest.json version {manifest.get('version')} must equal {expected_version}"
-        )
-    if versions.get(expected_version) != manifest.get("minAppVersion"):
-        raise RuntimeError(
-            f"versions.json must map {expected_version} to manifest.minAppVersion"
         )
 
 

@@ -63,7 +63,24 @@ class ReleaseVersionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "already exists on origin"):
             release.require_absent_tag("0.1.0", lambda _: next(responses))
 
-    def test_requires_all_plugin_versions_to_match_expected_tag(self) -> None:
+    def test_allows_release_without_versions_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "package.json").write_text(
+                json.dumps({"version": "0.2.0"}), encoding="utf-8"
+            )
+            (root / "manifest.json").write_text(
+                json.dumps({"version": "0.2.0", "minAppVersion": "1.8.0"}),
+                encoding="utf-8",
+            )
+            original_root = release.REPOSITORY_ROOT
+            release.REPOSITORY_ROOT = root
+            try:
+                release.require_plugin_version("0.2.0")
+            finally:
+                release.REPOSITORY_ROOT = original_root
+
+    def test_rejects_plugin_version_mismatch(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "package.json").write_text(
@@ -73,14 +90,10 @@ class ReleaseVersionTests(unittest.TestCase):
                 json.dumps({"version": "0.1.0", "minAppVersion": "1.8.0"}),
                 encoding="utf-8",
             )
-            (root / "versions.json").write_text(
-                json.dumps({"0.1.0": "1.8.0"}), encoding="utf-8"
-            )
 
             original_root = release.REPOSITORY_ROOT
             release.REPOSITORY_ROOT = root
             try:
-                release.require_plugin_version("0.1.0")
                 with self.assertRaisesRegex(RuntimeError, "must equal"):
                     release.require_plugin_version("0.2.0")
             finally:
