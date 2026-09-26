@@ -53,7 +53,10 @@ export class ObsidianLifecycleWriter {
       if (managed[field] !== expected) throw new Error('Task changed before the move.');
       managed[field] = replacement;
     }
-    const entries = planArchive(this.store.root(), await this.store.list(), [{ id: plan.id, before, after: { path: before.path, managed } }]);
+    const path = plan.expectedLifecycle === 'done' && plan.replacementLifecycle === 'active'
+      ? `${this.store.root()}/${workFolder({ type: 'task', lifecycle: 'active' })}/${before.path.split('/').at(-1)!}`
+      : before.path;
+    const entries = planArchive(this.store.root(), await this.store.list(), [{ id: plan.id, before, after: { path, managed } }]);
     await this.commitArchive(entries);
   }
 

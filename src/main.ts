@@ -175,6 +175,7 @@ export default class FocusFlowPlugin extends Plugin {
       this.index,
       () => new Date().toISOString(),
       () => ({
+        sprintScope: this.settings.wip.sprintScope,
         tomorrow: this.settings.wip.tomorrow,
         today: this.settings.wip.today,
         inProgress: this.settings.wip.inProgress,

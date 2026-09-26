@@ -482,6 +482,43 @@ it('moves a newly completed Task in the same durable operation and preserves unr
   expect(f.writes[0]).toBe('create:Focus Flow/WORKSPACE-OPERATIONS.md');
 });
 
+it('reopens an archived Done Task into the active Tasks folder in one durable operation', async () => {
+  const f = fixture();
+  const completedAt = '2026-09-01T00:30:00+14:00';
+  await f.service.moveTask({ path: f.plan.tasks[0]!.path, id: String(f.task.id), expectedLifecycle: 'active', replacementLifecycle: 'done', expectedStatus: 'in_progress', replacementStatus: 'done', expectedTaskRank: 'a0', replacementTaskRank: 'a1', expectedStartedAt: '2026-08-28T09:00:00Z', replacementStartedAt: '2026-08-28T09:00:00Z', expectedCompletedAt: null, replacementCompletedAt: completedAt });
+  const archivedPath = 'Focus Flow/Tasks/Archive/2026/09/FF-43 Promote me.md';
+  f.writes.length = 0;
+
+  await f.service.moveTask({ path: archivedPath, id: String(f.task.id), expectedLifecycle: 'done', replacementLifecycle: 'active', expectedStatus: 'done', replacementStatus: 'today', expectedTaskRank: 'a1', replacementTaskRank: 'a2', expectedStartedAt: '2026-08-28T09:00:00Z', replacementStartedAt: '2026-08-28T09:00:00Z', expectedCompletedAt: completedAt, replacementCompletedAt: null });
+
+  expect(await f.store.read(archivedPath)).toBeNull();
+  expect(await f.store.read(f.plan.tasks[0]!.path)).toMatchObject({
+    lifecycle: 'active',
+    status: 'today',
+    task_rank: 'a2',
+    started_at: '2026-08-28T09:00:00Z',
+    completed_at: null,
+  });
+  expect(f.contents.get(f.plan.tasks[0]!.path)).toContain('owner: me');
+  expect(f.writes).toContain(`move:${archivedPath}`);
+});
+
+it('does not partially reopen a Done Task when its active path is occupied', async () => {
+  const f = fixture();
+  const completedAt = '2026-09-01T00:30:00+14:00';
+  await f.service.moveTask({ path: f.plan.tasks[0]!.path, id: String(f.task.id), expectedLifecycle: 'active', replacementLifecycle: 'done', expectedStatus: 'in_progress', replacementStatus: 'done', expectedTaskRank: 'a0', replacementTaskRank: 'a1', expectedStartedAt: '2026-08-28T09:00:00Z', replacementStartedAt: '2026-08-28T09:00:00Z', expectedCompletedAt: null, replacementCompletedAt: completedAt });
+  const archivedPath = 'Focus Flow/Tasks/Archive/2026/09/FF-43 Promote me.md';
+  f.add(f.plan.tasks[0]!.path, { ...f.task, id: '01994706-857c-76f1-8006-85cd9bd80899' });
+  f.writes.length = 0;
+
+  await expect(f.service.moveTask({ path: archivedPath, id: String(f.task.id), expectedLifecycle: 'done', replacementLifecycle: 'active', expectedStatus: 'done', replacementStatus: 'todo', expectedTaskRank: 'a1', replacementTaskRank: 'a2', expectedStartedAt: '2026-08-28T09:00:00Z', replacementStartedAt: '2026-08-28T09:00:00Z', expectedCompletedAt: completedAt, replacementCompletedAt: null }))
+    .rejects.toThrow('Destination already exists');
+
+  expect(f.writes).toEqual([]);
+  expect(await f.store.read(archivedPath)).toMatchObject({ lifecycle: 'done', status: 'done', completed_at: completedAt });
+  expect(await f.store.read(f.plan.tasks[0]!.path)).toMatchObject({ id: '01994706-857c-76f1-8006-85cd9bd80899' });
+});
+
 it.each(['complete-epic', 'close-epic'] as const)('archives %s and updates terminal child Story links before the move', async (kind) => {
   const f = fixture();
   const epicPath = 'Focus Flow/Epics/FF-40 Product.md';
