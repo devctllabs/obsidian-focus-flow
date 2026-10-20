@@ -16,7 +16,7 @@ export const config: WebdriverIO.Config = {
       browserName: 'obsidian',
       'wdio:obsidianOptions': {
         appVersion: process.env.OBSIDIAN_APP_VERSION ?? 'latest',
-        installerVersion: process.env.OBSIDIAN_INSTALLER_VERSION ?? 'earliest',
+        installerVersion: process.env.OBSIDIAN_INSTALLER_VERSION ?? 'latest',
         plugins: ['.'],
         vault: mobileProfile
           ? 'test/vaults/mobile-smoke'
