@@ -2,8 +2,6 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
   workflow_call:
 
 concurrency:
@@ -36,6 +34,10 @@ jobs:
             ${{ runner.os }}-playwright-
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:release-helper
-      - run: pnpm test:cli:install
+      - if: github.event_name == 'workflow_call'
+        run: pnpm test:cli:install
       - run: pnpm exec playwright install --with-deps chromium
-      - run: xvfb-run -a pnpm check:full
+      - if: github.event_name == 'pull_request'
+        run: xvfb-run -a pnpm check
+      - if: github.event_name == 'workflow_call'
+        run: xvfb-run -a pnpm check:full
