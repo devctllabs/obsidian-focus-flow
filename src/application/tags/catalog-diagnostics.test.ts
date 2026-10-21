@@ -7,7 +7,7 @@ const base = { createdAt: '2026-09-07T00:00:00Z', effectiveTags: [] as string[] 
 describe('uncatalogedTagDiagnostics', () => {
   it('counts exact native tags only on current work', () => {
     const entities = [
-      { ...base, id: 'candidate', key: 'FF-1', title: 'Candidate', type: 'candidate', lifecycle: 'inbox', tags: ['direct', 'direct'], path: 'Inbox/FF-1.md' },
+      { ...base, id: 'candidate', key: 'FF-1', title: 'Candidate', type: 'candidate', lifecycle: 'inbox', inboxRank: null, tags: ['direct', 'direct'], path: 'Inbox/FF-1.md' },
       { ...base, id: 'story', key: 'FF-2', title: 'Story', type: 'story', lifecycle: 'backlog', epicId: 'epic', epicLink: '[[Epic]]', backlogRank: 'a0', sprintId: null, sprintRank: null, tags: ['direct'], effectiveTags: ['direct', 'inherited'], acceptanceCriteria: [], path: 'Stories/FF-2.md' },
       { ...base, id: 'done', key: 'FF-3', title: 'Done', type: 'task', lifecycle: 'done', storyId: 'story', storyLink: '[[Story]]', status: 'done', taskRank: 'a0', startedAt: null, completedAt: '2026-09-07T00:00:00Z', tags: ['terminal'], path: 'Tasks/Archive/FF-3.md' },
     ] satisfies ProjectedManagedEntity[];
@@ -17,7 +17,7 @@ describe('uncatalogedTagDiagnostics', () => {
 
   it('reports each missing native tag on current work once as an advisory repair', () => {
     const entities = [
-      { ...base, id: 'candidate', key: 'FF-1', title: 'Candidate', type: 'candidate', lifecycle: 'inbox', tags: ['direct', 'cataloged'], path: 'Inbox/FF-1.md' },
+      { ...base, id: 'candidate', key: 'FF-1', title: 'Candidate', type: 'candidate', lifecycle: 'inbox', inboxRank: null, tags: ['direct', 'cataloged'], path: 'Inbox/FF-1.md' },
       { ...base, id: 'epic', key: 'FF-2', title: 'Epic', type: 'epic', lifecycle: 'backlog', backlogRank: 'a0', tags: ['direct'], path: 'Epics/FF-2.md' },
     ] satisfies ProjectedManagedEntity[];
 

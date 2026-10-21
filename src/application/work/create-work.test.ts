@@ -23,6 +23,7 @@ const snapshot: WorkIndexSnapshot = {
       title: 'Existing idea',
       type: 'candidate',
       lifecycle: 'inbox',
+      inboxRank: null,
       createdAt: '2026-08-30T08:45:00+04:00',
       tags: [],
       effectiveTags: [],
@@ -33,6 +34,14 @@ const snapshot: WorkIndexSnapshot = {
 };
 
 describe('WorkCreationService', () => {
+  it('captures before ranked Candidates without rewriting legacy notes', async () => {
+    const writer = { create: vi.fn().mockResolvedValue('created.md') };
+    const current: WorkIndexSnapshot = { ...snapshot, entities: [...snapshot.entities, { ...snapshot.entities[0]!, id: 'ranked', key: 'FF-42', inboxRank: 'a0' } as WorkIndexSnapshot['entities'][number]] };
+    const service = makeService(writer, { refresh: vi.fn(), getSnapshot: () => current }, { render: vi.fn().mockResolvedValue('') }, () => 'new', () => '2026-09-01T10:00:00Z');
+    await service.captureCandidate('Newest');
+    expect(writer.create).toHaveBeenCalledWith(expect.objectContaining({ inboxRank: 'Zz' }));
+    expect(writer.create).toHaveBeenCalledOnce();
+  });
   it('fills Candidate template fields without removing custom sections', async () => {
     const writer = { create: vi.fn<WorkCreator['create']>().mockResolvedValue('created.md') };
     const service = makeService(writer, { refresh: vi.fn(), getSnapshot: () => snapshot }, { render: vi.fn().mockResolvedValue('## Description\n\nTemplate hint\n\n## Entry Review\n\n## Notes\n\nKeep me\n') }, () => 'id', () => '2026-09-05T10:00:00Z');
@@ -89,6 +98,7 @@ describe('WorkCreationService', () => {
       title: 'Explore calm planning',
       createdAt: '2026-08-30T12:00:00.000Z',
       body: '# Explore calm planning\n',
+      inboxRank: 'a0',
       tags: ['focus', 'weekly'],
     });
     expect(index.refresh).toHaveBeenCalledTimes(2);

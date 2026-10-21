@@ -1008,6 +1008,8 @@ body[data-focus-flow-theme='dark'] .focus-flow[data-ff-accent='custom'],
 .focus-flow .focus-flow__body-fields small { color: var(--ff-muted); font-weight: normal; }
 .focus-flow .focus-flow__body-fields textarea { width: 100%; min-height: 6rem; resize: vertical; }
 .focus-flow .focus-flow__inbox .focus-flow__work-row-main { grid-template-columns: minmax(0, 1fr) auto; }
+.focus-flow__inbox .focus-flow__work-row:has(> .focus-flow__drag-handle) { align-items: center; display: grid; gap: .35rem; grid-template-columns: auto minmax(0, 1fr); }
+.focus-flow__inbox .focus-flow__work-row[data-dragging='true'] { background: var(--ff-background); box-shadow: var(--ff-shadow); }
 .focus-flow .focus-flow__inbox-preview { margin: .25rem 0 0; color: var(--ff-muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .focus-flow .focus-flow__inbox-date { display: block; margin-top: .2rem; font-size: .75rem; color: var(--ff-muted); }
 .focus-flow .focus-flow__tag-units { margin: .4rem 0 .85rem; width: fit-content; }

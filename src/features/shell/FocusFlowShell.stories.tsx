@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import { useState, type ComponentProps } from 'react';
 import { generateKeyBetween } from 'fractional-indexing';
+import { distractions, inboxCandidates } from '../../domain/inbox-order';
 import type { StoryPosition } from '../../application/planning/active-story-membership';
 import { PlanningReorderService } from '../../application/planning/reorder-work';
 import { MonthBacklogService } from '../../application/planning/month-backlog';
@@ -122,6 +123,35 @@ export const PageHeadingAlignment: Story = {
   },
 };
 
+export const InboxTriageAndOrder: Story = {
+  render: (args) => <WorkspacePreview {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(within(canvas.getByRole('navigation', { name: 'Focus Flow pages' })).getByRole('button', { name: /^Inbox/ }));
+    await userEvent.click(canvas.getByRole('button', { name: 'More actions for FF-48' }));
+    await userEvent.click(body.getByRole('menuitem', { name: 'Reject' }));
+    await userEvent.type(body.getByLabelText('Rejection reason for FF-48'), 'Review another time');
+    await userEvent.click(body.getByRole('button', { name: 'Reject FF-48' }));
+    await waitFor(() => expect(canvas.queryByRole('heading', { name: candidate.title })).not.toBeInTheDocument());
+    await userEvent.click(canvas.getByRole('button', { name: /^Distractions/ }));
+    await userEvent.click(canvas.getByRole('button', { name: 'More actions for FF-48' }));
+    await userEvent.click(body.getByRole('menuitem', { name: 'Reconsider' }));
+    await userEvent.click(body.getByRole('button', { name: 'Return to Inbox' }));
+    await userEvent.click(canvas.getByRole('button', { name: /^Candidates/ }));
+    await expect(canvas.getByRole('heading', { name: candidate.title })).toBeVisible();
+    await userEvent.click(canvas.getByRole('button', { name: /^Distractions/ }));
+    await userEvent.click(canvas.getByRole('button', { name: 'More actions for FF-54' }));
+    await userEvent.click(body.getByRole('menuitem', { name: 'Reconsider' }));
+    await userEvent.click(body.getByRole('button', { name: 'Return to Inbox' }));
+    await userEvent.click(canvas.getByRole('button', { name: /^Candidates/ }));
+    await waitFor(() => expect(canvas.getAllByRole('heading', { level: 2 })[0]).toHaveAccessibleName(distraction.title));
+    await userEvent.click(canvas.getByRole('button', { name: 'More actions for FF-54' }));
+    await userEvent.click(body.getByRole('menuitem', { name: 'Move down' }));
+    await waitFor(() => expect(canvas.getAllByRole('heading', { level: 2 })[0]).toHaveAccessibleName(candidate.title));
+  },
+};
+
 export const EpicBacklogReorder: Story = {
   render: (args) => <WorkspacePreview {...args} />,
   play: async ({ canvasElement }) => {
@@ -211,6 +241,18 @@ function WorkspacePreview(args: ComponentProps<typeof FocusFlowShell>) {
     dragEnabled
     onAcceptCandidateAsEpic={async (id, fields) => acceptPreview(id, 'epic', fields)}
     onAcceptCandidateAsStory={async (id, epicId, fields) => acceptPreview(id, 'story', fields, epicId)}
+    onRejectCandidate={(id, reason) => setEntities((current) => {
+      const distractionRank = generateKeyBetween(null, distractions(current ?? [])[0]?.distractionRank ?? null);
+      return current?.map((entity) => entity.type === 'candidate' && entity.lifecycle === 'inbox' && entity.id === id
+        ? { ...entity, lifecycle: 'rejected', distractionRank, inboxRank: null, rejectedAt: '2026-09-05T12:00:00Z', rejectionReason: reason, path: entity.path.replace('/Inbox/', '/Distractions/') }
+        : entity);
+    })}
+    onReconsiderCandidate={(id) => setEntities((current) => {
+      const inboxRank = generateKeyBetween(null, inboxCandidates(current ?? [])[0]?.inboxRank ?? null);
+      return current?.map((entity) => entity.type === 'candidate' && entity.lifecycle === 'rejected' && entity.id === id
+        ? { ...entity, lifecycle: 'inbox', inboxRank, distractionRank: null, rejectedAt: undefined, rejectionReason: null, path: entity.path.replace('/Distractions/', '/Inbox/') }
+        : entity);
+    })}
     onSetMonthMembership={(id, selected) => {
       const service = new MonthBacklogService({ refresh: async () => undefined, getSnapshot: () => ({ phase: 'ready', entities: entities ?? [], diagnostics: [] }) }, async (plan) => setEntities((current) => current?.map((entity) => entity.type === 'story' && entity.id === plan.note.id ? { ...entity, lifecycle: plan.selected ? 'backlog' : 'epic_backlog', backlogRank: plan.backlogRank } : entity)));
       void service.setSelected(id, selected);
@@ -219,10 +261,8 @@ function WorkspacePreview(args: ComponentProps<typeof FocusFlowShell>) {
       const reorder = new PlanningReorderService({ rebalanceRanks: async (plan) => setEntities((current) => current?.map((entity) => {
         const entry = plan.entries.find((entry) => entry.id === entity.id);
         if (!entry) return entity;
-        if (entry.field === 'task_rank' && entity.type === 'task') return { ...entity, taskRank: entry.replacementValue };
-        if (entry.field === 'sprint_rank' && entity.type === 'story') return { ...entity, sprintRank: entry.replacementValue };
-        if (entry.field === 'backlog_rank' && (entity.type === 'story' || (entity.type === 'epic' && entity.lifecycle === 'backlog'))) return { ...entity, backlogRank: entry.replacementValue };
-        return entity;
+        const field = { distraction_rank: 'distractionRank', inbox_rank: 'inboxRank', task_rank: 'taskRank', sprint_rank: 'sprintRank', backlog_rank: 'backlogRank' }[entry.field];
+        return { ...entity, [field]: entry.replacementValue };
       })) }, { refresh: async () => undefined, getSnapshot: () => ({ phase: 'ready', entities: entities ?? [], diagnostics: [] }) });
       void reorder.execute(id, targetIndex);
     }}

@@ -15,6 +15,7 @@ function candidate(
     title: `${key} Candidate`,
     type: 'candidate',
     lifecycle: 'inbox',
+    inboxRank: null,
     createdAt: '2026-08-30T12:00:00Z',
     tags,
     effectiveTags: tags,
@@ -23,6 +24,83 @@ function candidate(
 }
 
 describe('InboxView tag filtering', () => {
+  it('reorders Distractions independently and uses full section positions through search', async () => {
+    const user = userEvent.setup();
+    const onReorder = vi.fn();
+    const rejected = (id: string, key: string, rejectedAt: string, distractionRank: string | null = null) => ({
+      ...candidate(id, key, []), lifecycle: 'rejected' as const, rejectedAt, rejectionReason: null, distractionRank,
+    });
+    render(<InboxView section="distractions" dragEnabled onReorder={onReorder} onEditCandidate={vi.fn()} entities={[
+      candidate('inbox', 'FF-4', []),
+      rejected('old', 'FF-1', '2026-08-30T10:00:00Z'),
+      rejected('new', 'FF-2', '2026-09-01T10:00:00Z'),
+      rejected('ranked', 'FF-3', '2026-08-29T10:00:00Z', 'a0'),
+    ]} />);
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.getAttribute('aria-label'))).toEqual(['FF-3 Candidate', 'FF-2 Candidate', 'FF-1 Candidate']);
+    expect(screen.getAllByRole('button', { name: /^Drag / })).toHaveLength(3);
+    await user.click(screen.getByRole('button', { name: 'More actions for FF-1' }));
+    expect(screen.getAllByRole('menuitem')[0]).toHaveAccessibleName('Edit…');
+    await user.click(screen.getByRole('menuitem', { name: 'Move to top' }));
+    expect(onReorder).toHaveBeenLastCalledWith('old', 0);
+    await user.type(screen.getByRole('searchbox', { name: 'Search Distractions' }), 'FF-2');
+    expect(screen.queryByRole('button', { name: /^Drag / })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'More actions for FF-2' }));
+    expect(screen.queryByRole('menuitem', { name: 'Move up' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Move down' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: 'Move to bottom' }));
+    expect(onReorder).toHaveBeenLastCalledWith('new', 2);
+  });
+
+  it('shows saved order before legacy capture order and offers every menu move', async () => {
+    const user = userEvent.setup();
+    const onReorder = vi.fn();
+    render(<InboxView entities={[
+      candidate('3', 'FF-3', []),
+      { ...candidate('2', 'FF-2', []), inboxRank: 'a0' },
+      candidate('1', 'FF-1', []),
+    ]} onReorder={onReorder} onEditCandidate={vi.fn().mockResolvedValue(undefined)} />);
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.getAttribute('aria-label'))).toEqual([
+      'FF-2 Candidate', 'FF-1 Candidate', 'FF-3 Candidate',
+    ]);
+    await user.click(screen.getByRole('button', { name: 'More actions for FF-1' }));
+    expect(screen.getAllByRole('menuitem')[0]).toHaveAccessibleName('Edit…');
+    expect(screen.getByRole('menuitem', { name: 'Move up' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Move down' })).toBeEnabled();
+    expect(screen.getByRole('menuitem', { name: 'Move to bottom' })).toBeEnabled();
+    await user.click(screen.getByRole('menuitem', { name: 'Move to top' }));
+    expect(onReorder).toHaveBeenCalledWith('1', 0);
+  });
+
+  it('uses full Inbox positions for filtered moves and disables drag and adjacent moves', async () => {
+    const user = userEvent.setup();
+    const onReorder = vi.fn();
+    render(<InboxView entities={[candidate('1', 'FF-1', []), candidate('2', 'FF-2', ['idea']), candidate('3', 'FF-3', [])]} dragEnabled onReorder={onReorder} />);
+    expect(screen.getAllByRole('button', { name: /^Drag / })).toHaveLength(3);
+    await user.type(screen.getByRole('searchbox'), 'FF-2');
+    expect(screen.queryByRole('button', { name: /^Drag / })).not.toBeInTheDocument();
+    expect(screen.getByText('Clear search and filters to drag or move up/down.')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'More actions for FF-2' }));
+    expect(screen.queryByRole('menuitem', { name: 'Move up' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Move down' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Move to top' })).toBeEnabled();
+    await user.click(screen.getByRole('menuitem', { name: 'Move to bottom' }));
+    expect(onReorder).toHaveBeenCalledWith('2', 2);
+    expect(screen.getByRole('searchbox')).toHaveValue('FF-2');
+  });
+
+  it('hides unavailable moves at collection boundaries and while saving', async () => {
+    const user = userEvent.setup();
+    const onReorder = vi.fn();
+    const { rerender } = render(<InboxView entities={[candidate('1', 'FF-1', [])]} onReorder={onReorder} />);
+    await user.click(screen.getByRole('button', { name: 'More actions for FF-1' }));
+    for (const name of ['Move to top', 'Move up', 'Move down', 'Move to bottom']) expect(screen.queryByRole('menuitem', { name })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    rerender(<InboxView entities={[candidate('1', 'FF-1', []), candidate('2', 'FF-2', [])]} pending onReorder={onReorder} />);
+    await user.click(screen.getByRole('button', { name: 'More actions for FF-1' }));
+    expect(screen.queryByRole('menuitem', { name: 'Move to bottom' })).not.toBeInTheDocument();
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
   it('keeps Candidate capture out of the search toolbar', () => {
     render(<InboxView entities={[]} />);
     expect(screen.getByRole('searchbox', { name: 'Search Candidates' })).toBeVisible();
@@ -75,7 +153,7 @@ describe('InboxView tag filtering', () => {
   it('trashes a Distraction only after explicit confirmation', async () => {
     const onDeleteDistraction = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    render(<InboxView entities={[{ ...candidate('1', 'FF-1', ['idea']), lifecycle: 'rejected', rejectedAt: '2026-09-01T12:00:00Z', rejectionReason: null }]} section="distractions" onDeleteDistraction={onDeleteDistraction} />);
+    render(<InboxView entities={[{ ...candidate('1', 'FF-1', ['idea']), lifecycle: 'rejected', distractionRank: null, rejectedAt: '2026-09-01T12:00:00Z', rejectionReason: null }]} section="distractions" onDeleteDistraction={onDeleteDistraction} />);
     await user.click(screen.getByRole('button', { name: 'More actions for FF-1' }));
     await user.click(screen.getByRole('menuitem', { name: 'Move to trash…' }));
     expect(onDeleteDistraction).not.toHaveBeenCalled();
@@ -206,6 +284,7 @@ describe('InboxView tag filtering', () => {
           {
             ...candidate('1', 'FF-1', []),
             lifecycle: 'rejected',
+            distractionRank: null,
             rejectedAt: '2026-08-31T12:00:00Z',
             rejectionReason: 'Not now',
           },

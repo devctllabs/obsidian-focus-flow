@@ -41,7 +41,7 @@ workflows run outside it through the deterministic CLI boundary.
 
 ## Information architecture
 
-Focus Flow registers one Obsidian ItemView shell that can display five modes. Commands open the requested mode in an existing Focus Flow leaf by default; users may explicitly open multiple leaves side by side.
+Focus Flow registers one Obsidian ItemView shell that can display five modes. Commands open the requested mode in an existing Focus Flow leaf by default; users may explicitly open multiple leaves side by side. Action menus omit unavailable actions; ordinary buttons and form controls retain their disabled states.
 
 ### Focus
 
@@ -65,7 +65,9 @@ Expanding an Epic shows its Stories that are currently in the Month Backlog or S
 
 ### Inbox
 
-Shows Candidates as a searchable list in capture order. Native tags remain visible as passive metadata. A compact tag picker provides searchable tag filters, live Candidate counts, and explicit **Matches all selected tags** AND semantics. Row menus contain **Filter by tag…**, **Accept as Epic**, **Accept as Story**, and **Reject**; focused dialogs collect only the extra information an action needs. Direct valid Markdown remains supported.
+Shows Candidates as a searchable list with a saved manual order. Desktop pointer and keyboard drag use a row handle; row menus keep **Edit…** first among available actions and offer **Move to top**, **Move up**, **Move down**, and **Move to bottom** on desktop and mobile. New captures and reconsidered Candidates enter at the top without being pinned. Search and tag filters disable drag and hide adjacent moves; top/bottom still address the complete Inbox and preserve the filters. Existing unranked notes retain their capture order until explicitly reordered; opening Inbox never rewrites them.
+
+Native tags remain visible as passive metadata. A compact tag picker provides searchable tag filters, live Candidate counts, and explicit **Matches all selected tags** AND semantics. Row menus also contain **Filter by tag…**, **Accept as Epic**, **Accept as Story**, and **Reject**; focused dialogs collect only the extra information an action needs. Direct valid Markdown remains supported.
 
 Entry Review belongs to the Candidate's user-owned Markdown body and may be
 written with the companion `$focus-flow` skill. The plugin does not parse or
@@ -75,7 +77,7 @@ or acceptance.
 
 ### Distractions
 
-Lives inside Inbox, shows rejected Candidates, and preserves their body, tags, and any reflective Distraction Analysis. **Reconsider** returns the same note to Inbox and clears rejection metadata.
+Lives inside Inbox and preserves rejected Candidates’ body, tags, and reflective Distraction Analysis. Distractions have their own saved manual order, with the same desktop drag handle, keyboard sorting, mobile movement menu and filter rules as Candidates. New rejections enter at the top; existing unranked notes retain newest-rejection-first order until explicitly reordered. **Reconsider** returns the same note to the top of Candidates and clears rejection metadata and its Distractions rank. The two sections never share a position.
 
 ### History
 

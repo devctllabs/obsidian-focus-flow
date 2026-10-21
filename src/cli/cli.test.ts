@@ -40,6 +40,7 @@ describe('Focus Flow CLI', () => {
       'utf8',
     );
     expect(candidate).toContain('## Description');
+    expect(candidate).toContain('  inbox_rank: a0');
     expect(candidate).not.toContain('# Capture friction');
   });
 

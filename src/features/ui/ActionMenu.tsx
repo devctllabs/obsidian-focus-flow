@@ -153,10 +153,10 @@ export function MenuAction({
   disabled?: boolean;
   onClick?: () => void;
 }) {
+  if (disabled) return null;
   return (
     <button
       className={destructive ? 'is-destructive' : undefined}
-      disabled={disabled}
       onClick={onClick}
       role="menuitem"
       type="button"

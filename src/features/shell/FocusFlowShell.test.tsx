@@ -36,6 +36,7 @@ describe('FocusFlowShell', () => {
         mode="inbox"
         onModeChange={vi.fn()}
         onAcceptCandidateAsEpic={onAcceptCandidateAsEpic}
+        onRejectCandidate={vi.fn()}
         indexState={{
           phase: 'ready',
           diagnostics: [],
@@ -46,6 +47,7 @@ describe('FocusFlowShell', () => {
               title: 'Explore weekly focus',
               type: 'candidate',
               lifecycle: 'inbox',
+              inboxRank: null,
               createdAt: '2026-08-30T08:45:00+04:00',
               tags: ['idea'],
               effectiveTags: ['idea'],
@@ -60,7 +62,7 @@ describe('FocusFlowShell', () => {
       screen.getByRole('heading', { name: 'Explore weekly focus' }),
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'More actions for FF-41' }));
-    expect(screen.getByRole('menuitem', { name: 'Accept as Story' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Accept as Story' })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Reject' })).toBeInTheDocument();
 
     await user.click(
@@ -83,6 +85,7 @@ describe('FocusFlowShell', () => {
       title: 'Explore weekly focus',
       type: 'candidate' as const,
       lifecycle: 'inbox' as const,
+      inboxRank: null,
       createdAt: '2026-08-30T08:45:00+04:00',
       tags: [],
       effectiveTags: [],
@@ -138,6 +141,7 @@ describe('FocusFlowShell', () => {
       title: 'Chase a visible metric',
       type: 'candidate' as const,
       lifecycle: 'inbox' as const,
+      inboxRank: null,
       createdAt: '2026-08-30T08:45:00+04:00',
       tags: [],
       effectiveTags: [],
@@ -188,6 +192,7 @@ describe('FocusFlowShell', () => {
               title: 'Chase a visible metric',
               type: 'candidate',
               lifecycle: 'rejected',
+              distractionRank: null,
               createdAt: '2026-08-30T08:45:00+04:00',
               tags: [],
               effectiveTags: [],

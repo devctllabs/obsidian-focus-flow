@@ -12,6 +12,7 @@ const candidate = {
   title: 'Explore weekly focus',
   type: 'candidate' as const,
   lifecycle: 'inbox' as const,
+  inboxRank: null,
   createdAt: '2026-08-30T08:45:00+04:00',
   tags: ['idea'],
   effectiveTags: ['idea'],
@@ -44,6 +45,13 @@ function indexFor(entities: WorkIndexSnapshot['entities']) {
 }
 
 describe('CandidateTriageService', () => {
+  it('places newly rejected Candidates before the Distractions rank without using Inbox ranks', async () => {
+    const writer = { apply: vi.fn().mockResolvedValue('rejected.md') };
+    const ranked = { ...candidate, id: 'distraction', key: 'FF-42', lifecycle: 'rejected' as const, distractionRank: 'a0', rejectedAt: '2026-09-01T10:00:00Z', rejectionReason: null };
+    const service = new CandidateTriageService(writer, indexFor([{ ...candidate, inboxRank: 'Zz' }, ranked]));
+    await service.reject(candidate.id, null);
+    expect(writer.apply).toHaveBeenCalledWith(expect.objectContaining({ kind: 'reject-candidate', distractionRank: 'Zz' }));
+  });
   it.each(['epic', 'story'] as const)('accepts reviewed %s fields and rejects stale Candidate text', async (target) => {
     const note = { ...candidate, bodyFields: { Description: 'Original' } };
     const writer = { apply: vi.fn().mockResolvedValue('accepted.md') };
@@ -156,6 +164,7 @@ describe('CandidateTriageService', () => {
 
     expect(writer.apply).toHaveBeenCalledWith({
       kind: 'reject-candidate',
+      distractionRank: 'a0',
       path: candidatePath,
       id: candidateId,
       key: 'FF-41',
@@ -169,6 +178,7 @@ describe('CandidateTriageService', () => {
     const rejected = {
       ...candidate,
       lifecycle: 'rejected' as const,
+      distractionRank: null,
       path: 'Focus Flow/Distractions/FF-41 Explore weekly focus.md',
       rejectedAt: '2026-08-30T12:30:00.000Z',
       rejectionReason: 'Not aligned right now.',
@@ -176,13 +186,14 @@ describe('CandidateTriageService', () => {
     const writer = {
       apply: vi.fn().mockResolvedValue(candidatePath),
     };
-    const index = indexFor([rejected]);
+    const index = indexFor([rejected, { ...candidate, id: 'other', key: 'FF-42', inboxRank: 'a0' }]);
     const service = new CandidateTriageService(writer, index);
 
     await service.reconsider(candidateId);
 
     expect(writer.apply).toHaveBeenCalledWith({
       kind: 'reconsider-candidate',
+      inboxRank: 'Zz',
       path: rejected.path,
       id: candidateId,
       key: 'FF-41',

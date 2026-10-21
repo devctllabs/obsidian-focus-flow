@@ -192,6 +192,7 @@ describe('FocusFlowRoot', () => {
       title: 'Explore weekly focus',
       type: 'candidate' as const,
       lifecycle: 'inbox' as const,
+      inboxRank: null,
       createdAt: '2026-08-30T08:45:00+04:00',
       tags: [],
       effectiveTags: [],
@@ -617,7 +618,7 @@ describe('FocusFlowRoot', () => {
     });
     const candidate = {
       id: '019946e9-0ef0-7ca3-af0c-ec423d76efed', key: 'FF-41', title: 'Candidate',
-      type: 'candidate' as const, lifecycle: 'inbox' as const, createdAt: '2026-09-07T00:00:00Z',
+      type: 'candidate' as const, lifecycle: 'inbox' as const, inboxRank: null, createdAt: '2026-09-07T00:00:00Z',
       tags: ['direct'], effectiveTags: ['direct'], path: 'Focus Flow/Inbox/FF-41 Candidate.md',
     };
     const snapshot: WorkIndexSnapshot = { phase: 'ready', entities: [candidate], diagnostics: [] };
@@ -652,7 +653,7 @@ describe('FocusFlowRoot', () => {
     };
     const candidate = {
       id: '019946e9-0ef0-7ca3-af0c-ec423d76efed', key: 'FF-41', title: 'Keep the work',
-      type: 'candidate' as const, lifecycle: 'inbox' as const, createdAt: '2026-09-07T00:00:00Z',
+      type: 'candidate' as const, lifecycle: 'inbox' as const, inboxRank: null, createdAt: '2026-09-07T00:00:00Z',
       tags: [], effectiveTags: [], path: 'Focus Flow/Inbox/FF-41 Keep the work.md',
     };
     const snapshot: WorkIndexSnapshot = { phase: 'ready', entities: [candidate], diagnostics: [] };

@@ -1,5 +1,6 @@
 import { browser, expect } from '@wdio/globals';
 import { describe, it } from 'mocha';
+import { verifyInboxOrdering } from './inbox-ordering';
 
 async function readVaultFile(path: string): Promise<string> {
   return browser.executeObsidian(
@@ -175,5 +176,9 @@ describe('Focus Flow mobile-compatible path', () => {
         delete scope.__focusFlowRealDate;
       });
     }
+  });
+
+  it('persists independent Candidate and Distraction orders through menus and reload', async () => {
+    await verifyInboxOrdering(false);
   });
 });

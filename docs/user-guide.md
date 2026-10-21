@@ -186,6 +186,20 @@ Capture first; decide later. A Candidate can become an Epic or Story. Choose
 **Reject** to retain it as a Distraction, or **Delete…** only when it was an
 accidental capture. A Distraction can be reconsidered and returned to Inbox.
 
+Drag Candidates by their handle on desktop to choose your order of review, or
+use **Move to top**, **Move up**, **Move down**, and **Move to bottom** in the
+row menu. Mobile uses the same menu without touch drag. New captures and
+reconsidered Candidates appear first; moving a Candidate to the top does not
+pin it above future captures.
+
+With search or tag filters active, only **Move to top/bottom** remain available
+and move the note within its complete section. Clear search and filters to
+drag or move up/down. Your order survives reopening and plugin reload. Existing
+Candidates keep their capture order until you rearrange them. Distractions
+support the same drag and menu controls with an independent saved order. New
+rejections enter at the top, while existing Distractions initially keep their
+rejection-date order. Reconsider returns a note to the top of Candidates.
+
 ### Planning
 
 Plan owns Story membership. **+ Month** shortlists a Story; **Return to Epic**

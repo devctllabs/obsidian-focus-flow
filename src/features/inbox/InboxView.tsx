@@ -1,5 +1,8 @@
-import { useMemo, useRef, useState, type RefObject } from 'react';
+import { useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { ProjectedManagedEntity } from '../../application/indexing/work-index';
+import { compareDistractions, compareInboxCandidates } from '../../domain/inbox-order';
+import { BoardDragAdapter } from '../planning/BoardDragAdapter';
+import { reorderActionsFor } from '../planning/reorder-actions';
 import { compareOrdinal } from '../../domain/ordering';
 import type { InboxSection } from '../../obsidian/views/view-state';
 import { WorkTitleButton } from '../work/WorkTitleButton';
@@ -34,6 +37,8 @@ interface InboxViewProps {
   missionMissing?: boolean;
   onCreateMission?: () => void;
   pending?: boolean;
+  dragEnabled?: boolean;
+  onReorder?: (entityId: string, targetIndex: number) => void;
 }
 
 type Decision =
@@ -64,6 +69,8 @@ export function InboxView({
   missionMissing = false,
   onCreateMission,
   pending = false,
+  dragEnabled = false,
+  onReorder,
 }: InboxViewProps) {
   const [query, setQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<ReadonlySet<string>>(new Set());
@@ -76,9 +83,10 @@ export function InboxView({
     .filter((entity): entity is Candidate => entity.type === 'candidate')
     .sort((left, right) => {
       if (left.lifecycle === 'rejected' && right.lifecycle === 'rejected') {
-        return Date.parse(right.rejectedAt) - Date.parse(left.rejectedAt);
+        return compareDistractions(left, right);
       }
-      return Date.parse(left.createdAt) - Date.parse(right.createdAt) || compareOrdinal(left.key, right.key);
+      if (left.lifecycle === 'inbox' && right.lifecycle === 'inbox') return compareInboxCandidates(left, right);
+      return left.lifecycle === 'inbox' ? -1 : 1;
     }), [entities]);
   const epics = useMemo(() => entities
     .filter((entity): entity is Epic => entity.type === 'epic' && entity.lifecycle === 'backlog')
@@ -125,7 +133,7 @@ export function InboxView({
     <MissionPrompt dismissed={missionDismissed} missing={missionMissing} onCreate={onCreateMission} onDismiss={() => setMissionDismissed(true)} pending={pending} section={section} />
     <InboxFilters availableTags={availableTags} clearFilters={clearFilters} closeTagPicker={closeTagPicker} onQueryChange={setQuery} onToggleTag={toggleTag} openTagPicker={openTagPicker} query={query} section={section} selectedTags={selectedTags} tagOptions={tagOptions} tagPickerRequest={tagPickerRequest} tagTriggerRef={tagTriggerRef} />
     <ActiveTagFilters activeTags={activeTags} clearFilters={clearFilters} onRemove={toggleTag} selectedTags={selectedTags} visibleActiveTags={visibleActiveTags} />
-    <CandidateResults clearFilters={clearFilters} epics={epics} onDecision={setDecision} onEditCandidate={onEditCandidate} onOpenNote={onOpenNote} onRequestDelete={onRequestDelete} onTagFilter={openTagPicker} pending={pending} query={query} section={section} selectedTags={selectedTags} visible={visible} capabilities={{ onAcceptAsEpic, onAcceptAsStory, onReject, onReconsider, onDeleteDistraction }} />
+    <CandidateResults allCandidates={inSection} dragEnabled={dragEnabled} onReorder={onReorder} clearFilters={clearFilters} epics={epics} onDecision={setDecision} onEditCandidate={onEditCandidate} onOpenNote={onOpenNote} onRequestDelete={onRequestDelete} onTagFilter={openTagPicker} pending={pending} query={query} section={section} selectedTags={selectedTags} visible={visible} capabilities={{ onAcceptAsEpic, onAcceptAsStory, onReject, onReconsider, onDeleteDistraction }} />
     <DecisionDialogs availableTags={availableTags} decision={decision} epics={epics} onAcceptAsEpic={onAcceptAsEpic} onAcceptAsStory={onAcceptAsStory} onClose={() => setDecision(null)} onDeleteDistraction={onDeleteDistraction} onReconsider={onReconsider} onReject={onReject} pending={pending} />
   </section>;
 }
@@ -176,9 +184,37 @@ function ActiveTagFilters({ selectedTags, activeTags, visibleActiveTags, onRemov
 
 type InboxCapabilities = Pick<InboxViewProps, 'onAcceptAsEpic' | 'onAcceptAsStory' | 'onReject' | 'onReconsider' | 'onDeleteDistraction'>;
 
-function CandidateResults(props: { clearFilters: () => void; epics: readonly Epic[]; onDecision: (decision: Decision) => void; onEditCandidate?: InboxViewProps['onEditCandidate']; onOpenNote?: InboxViewProps['onOpenNote']; onRequestDelete?: InboxViewProps['onRequestDelete']; onTagFilter: (hinted: readonly string[], initial?: readonly string[]) => void; pending: boolean; query: string; section: InboxSection; selectedTags: ReadonlySet<string>; visible: readonly Candidate[]; capabilities: InboxCapabilities }) {
+function CandidateResults(props: { allCandidates: readonly Candidate[]; dragEnabled: boolean; onReorder?: InboxViewProps['onReorder']; clearFilters: () => void; epics: readonly Epic[]; onDecision: (decision: Decision) => void; onEditCandidate?: InboxViewProps['onEditCandidate']; onOpenNote?: InboxViewProps['onOpenNote']; onRequestDelete?: InboxViewProps['onRequestDelete']; onTagFilter: (hinted: readonly string[], initial?: readonly string[]) => void; pending: boolean; query: string; section: InboxSection; selectedTags: ReadonlySet<string>; visible: readonly Candidate[]; capabilities: InboxCapabilities }) {
   const label = resultLabel(props.section, props.visible.length);
-  return <><p aria-live="polite" className="focus-flow__result-count">{props.visible.length} {label}</p>{props.visible.length === 0 ? <CandidateEmptyState clearFilters={props.clearFilters} filtered={props.query !== '' || props.selectedTags.size > 0} section={props.section} selectedTags={props.selectedTags} /> : <ol className="focus-flow__work-list">{props.visible.map((candidate) => <CandidateRow candidate={candidate} capabilities={props.capabilities} epics={props.epics} key={candidate.id} onDecision={props.onDecision} onEditCandidate={props.onEditCandidate} onOpenNote={props.onOpenNote} onRequestDelete={props.onRequestDelete} onTagFilter={props.onTagFilter} pending={props.pending} />)}</ol>}</>;
+  const filtered = props.query.trim() !== '' || props.selectedTags.size > 0;
+  const canReorder = props.onReorder !== undefined;
+  return <>
+    <p aria-live="polite" className="focus-flow__result-count">{props.visible.length} {label}</p>
+    {canReorder && filtered && <p className="focus-flow__empty-copy">Clear search and filters to drag or move up/down.</p>}
+    {props.visible.length === 0
+      ? <CandidateEmptyState clearFilters={props.clearFilters} filtered={filtered} section={props.section} selectedTags={props.selectedTags} />
+      : <BoardDragAdapter
+          items={props.visible.map((candidate) => ({ id: candidate.id, label: `${candidate.key} ${candidate.title}` }))}
+          enabled={props.dragEnabled && canReorder && !filtered}
+          disabled={props.pending}
+          group={props.section === 'candidates' ? 'inbox' : 'distractions'}
+          listClassName="focus-flow__work-list"
+          itemClassName="focus-flow__work-row"
+          onMove={props.onReorder}
+          renderItem={(_, index) => {
+            const candidate = props.visible[index]!;
+            const reorderActions = canReorder ? reorderActionsFor({
+              item: candidate,
+              index: props.allCandidates.findIndex((item) => item.id === candidate.id),
+              length: props.allCandidates.length,
+              onReorder: props.onReorder,
+              disabled: props.pending,
+              adjacentDisabled: filtered,
+            }) : undefined;
+            return <CandidateRow candidate={candidate} capabilities={props.capabilities} epics={props.epics} onDecision={props.onDecision} onEditCandidate={props.onEditCandidate} onOpenNote={props.onOpenNote} onRequestDelete={props.onRequestDelete} onTagFilter={props.onTagFilter} pending={props.pending} reorderActions={reorderActions} />;
+          }}
+        />}
+  </>;
 }
 
 function resultLabel(section: InboxSection, count: number) {
@@ -192,15 +228,15 @@ function CandidateEmptyState({ filtered, section, selectedTags, clearFilters }: 
   return <div className="focus-flow__empty-state"><h2>{title}</h2><p>{message}</p>{selectedTags.size > 0 && <button className="focus-flow__button-quiet" onClick={clearFilters} type="button">Clear filters</button>}</div>;
 }
 
-function CandidateRow({ candidate, capabilities, epics, onDecision, onEditCandidate, onOpenNote, onRequestDelete, onTagFilter, pending }: { candidate: Candidate; capabilities: InboxCapabilities; epics: readonly Epic[]; onDecision: (decision: Decision) => void; onEditCandidate?: InboxViewProps['onEditCandidate']; onOpenNote?: InboxViewProps['onOpenNote']; onRequestDelete?: InboxViewProps['onRequestDelete']; onTagFilter: (hinted: readonly string[], initial?: readonly string[]) => void; pending: boolean }) {
+function CandidateRow({ candidate, capabilities, epics, onDecision, onEditCandidate, onOpenNote, onRequestDelete, onTagFilter, pending, reorderActions }: { reorderActions?: ReactNode; candidate: Candidate; capabilities: InboxCapabilities; epics: readonly Epic[]; onDecision: (decision: Decision) => void; onEditCandidate?: InboxViewProps['onEditCandidate']; onOpenNote?: InboxViewProps['onOpenNote']; onRequestDelete?: InboxViewProps['onRequestDelete']; onTagFilter: (hinted: readonly string[], initial?: readonly string[]) => void; pending: boolean }) {
   const preview = candidate.lifecycle === 'rejected' ? candidate.rejectionReason : candidate.bodyFields?.Description;
   const date = candidate.lifecycle === 'rejected' ? candidate.rejectedAt : candidate.createdAt;
   const dateTitle = candidate.lifecycle === 'rejected' ? `Rejected ${formatDate(date)}` : `Captured ${formatDate(date)}`;
-  return <li className="focus-flow__work-row"><div className="focus-flow__work-row-main"><div className="focus-flow__work-identity"><h2 aria-label={candidate.title}><WorkTitleButton item={candidate} onOpenNote={onOpenNote} /></h2>{preview && <p className="focus-flow__inbox-preview">{preview}</p>}<time className="focus-flow__inbox-date" dateTime={date} title={dateTitle}>{formatDate(date)}</time></div><CandidateActions candidate={candidate} capabilities={capabilities} epics={epics} onDecision={onDecision} onEditCandidate={onEditCandidate} onRequestDelete={onRequestDelete} onTagFilter={onTagFilter} pending={pending} /></div></li>;
+  return <div className="focus-flow__work-row-main"><div className="focus-flow__work-identity"><h2 aria-label={candidate.title}><WorkTitleButton item={candidate} onOpenNote={onOpenNote} /></h2>{preview && <p className="focus-flow__inbox-preview">{preview}</p>}<time className="focus-flow__inbox-date" dateTime={date} title={dateTitle}>{formatDate(date)}</time></div><CandidateActions candidate={candidate} capabilities={capabilities} epics={epics} onDecision={onDecision} onEditCandidate={onEditCandidate} onRequestDelete={onRequestDelete} onTagFilter={onTagFilter} pending={pending} reorderActions={reorderActions} /></div>;
 }
 
-function CandidateActions({ candidate, capabilities, epics, onDecision, onEditCandidate, onRequestDelete, onTagFilter, pending }: { candidate: Candidate; capabilities: InboxCapabilities; epics: readonly Epic[]; onDecision: (decision: Decision) => void; onEditCandidate?: InboxViewProps['onEditCandidate']; onRequestDelete?: InboxViewProps['onRequestDelete']; onTagFilter: (hinted: readonly string[], initial?: readonly string[]) => void; pending: boolean }) {
-  return <ActionMenu label={`More actions for ${candidate.key}`}><MenuAction disabled={pending || !onEditCandidate} onClick={() => onDecision({ kind: 'edit', candidate })}>Edit…</MenuAction>{candidate.tags.length > 0 && <MenuAction onClick={() => onTagFilter(candidate.tags, candidate.tags.length === 1 ? candidate.tags : [])}>Filter by tag…</MenuAction>}{candidate.lifecycle === 'inbox' ? <InboxCandidateActions candidate={candidate} capabilities={capabilities} epics={epics} onDecision={onDecision} onRequestDelete={onRequestDelete} pending={pending} /> : <DistractionActions candidate={candidate} capabilities={capabilities} onDecision={onDecision} pending={pending} />}</ActionMenu>;
+function CandidateActions({ candidate, capabilities, epics, onDecision, onEditCandidate, onRequestDelete, onTagFilter, pending, reorderActions }: { reorderActions?: ReactNode; candidate: Candidate; capabilities: InboxCapabilities; epics: readonly Epic[]; onDecision: (decision: Decision) => void; onEditCandidate?: InboxViewProps['onEditCandidate']; onRequestDelete?: InboxViewProps['onRequestDelete']; onTagFilter: (hinted: readonly string[], initial?: readonly string[]) => void; pending: boolean }) {
+  return <ActionMenu label={`More actions for ${candidate.key}`}><MenuAction disabled={pending || !onEditCandidate} onClick={() => onDecision({ kind: 'edit', candidate })}>Edit…</MenuAction>{reorderActions}{candidate.tags.length > 0 && <MenuAction onClick={() => onTagFilter(candidate.tags, candidate.tags.length === 1 ? candidate.tags : [])}>Filter by tag…</MenuAction>}{candidate.lifecycle === 'inbox' ? <InboxCandidateActions candidate={candidate} capabilities={capabilities} epics={epics} onDecision={onDecision} onRequestDelete={onRequestDelete} pending={pending} /> : <DistractionActions candidate={candidate} capabilities={capabilities} onDecision={onDecision} pending={pending} />}</ActionMenu>;
 }
 
 function InboxCandidateActions({ candidate, capabilities, epics, onDecision, onRequestDelete, pending }: { candidate: InboxCandidate; capabilities: InboxCapabilities; epics: readonly Epic[]; onDecision: (decision: Decision) => void; onRequestDelete?: InboxViewProps['onRequestDelete']; pending: boolean }) {

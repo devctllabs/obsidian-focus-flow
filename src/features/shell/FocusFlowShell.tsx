@@ -203,7 +203,7 @@ function PlanMode(props: ModeContentProps) {
 }
 
 function InboxMode(props: ModeContentProps) {
-  return <InboxView onRequestDelete={props.onRequestDelete} entities={props.indexState.entities ?? []} missionMissing={props.missionMissing} onAcceptAsEpic={props.onAcceptCandidateAsEpic} onAcceptAsStory={props.onAcceptCandidateAsStory} onCreateMission={props.onCreateMission} onReject={props.onRejectCandidate} onReconsider={props.onReconsiderCandidate} onDeleteDistraction={props.onDeleteDistraction} onEditCandidate={props.onEditCandidate} onOpenNote={props.onOpenNote} onSectionChange={props.onInboxSectionChange} pending={props.workflowPending ?? false} section={props.inboxSection ?? 'candidates'} />;
+  return <InboxView dragEnabled={props.dragEnabled ?? false} onReorder={props.onReorder} onRequestDelete={props.onRequestDelete} entities={props.indexState.entities ?? []} missionMissing={props.missionMissing} onAcceptAsEpic={props.onAcceptCandidateAsEpic} onAcceptAsStory={props.onAcceptCandidateAsStory} onCreateMission={props.onCreateMission} onReject={props.onRejectCandidate} onReconsider={props.onReconsiderCandidate} onDeleteDistraction={props.onDeleteDistraction} onEditCandidate={props.onEditCandidate} onOpenNote={props.onOpenNote} onSectionChange={props.onInboxSectionChange} pending={props.workflowPending ?? false} section={props.inboxSection ?? 'candidates'} />;
 }
 
 function CloseMode(props: ModeContentProps) {

@@ -99,6 +99,7 @@ export const candidate = {
   title: 'Explore calmer handoffs',
   type: 'candidate' as const,
   lifecycle: 'inbox' as const,
+  inboxRank: null,
   createdAt: '2026-08-30T12:00:00Z',
   tags: ['idea'],
   effectiveTags: ['idea'],
@@ -108,6 +109,7 @@ export const candidate = {
 export const distraction = {
   ...candidate,
   lifecycle: 'rejected' as const,
+  distractionRank: null,
   rejectedAt: '2026-08-30T13:00:00Z',
   rejectionReason: 'Interesting, but not aligned with the Mission.',
   path: 'Focus Flow/Distractions/FF-48 Explore calmer handoffs.md',

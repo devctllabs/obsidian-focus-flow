@@ -2,6 +2,7 @@ import { browser, expect } from '@wdio/globals';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, it } from 'mocha';
+import { verifyInboxOrdering } from './inbox-ordering';
 
 async function readVaultFile(path: string): Promise<string> {
   return browser.executeObsidian(
@@ -438,6 +439,7 @@ describe('Focus Flow lifecycle', () => {
     });
     const content = await readVaultFile(candidatePath);
     expect(content).toContain('key: FF-48');
+    expect(content).toContain('inbox_rank:');
     expect(content).toContain('tags: ["weekly"]');
     expect(content).toMatch(
       /\n  id: [0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\n/,
@@ -1586,5 +1588,9 @@ tags:
           .$('[aria-label="Open FF-9000 External signal renamed"]')
           .isExisting()),
     );
+  });
+
+  it('persists independent Candidate and Distraction orders through menus and reload', async () => {
+    await verifyInboxOrdering(true);
   });
 });

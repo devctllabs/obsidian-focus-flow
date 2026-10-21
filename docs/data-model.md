@@ -138,10 +138,21 @@ focus_flow:
   key: FF-42
   type: candidate
   lifecycle: inbox
+  inbox_rank: a0
   created_at: 2026-08-30T09:00:00+04:00
 ```
 
 Allowed lifecycle values are `inbox` and `rejected`. Rejection adds `rejected_at` and optional `rejection_reason`, then moves the note to `Distractions/`. Reconsideration moves the same note back to `Inbox/` and clears both rejection fields without retaining a rejection-history record. Acceptance reclassifies the note instead of retaining an accepted Candidate record; the Sprint and entity history preserve its prior role where relevant.
+
+`inbox_rank` is an optional schema v1 fractional-indexing key, active only in Inbox. Capture (including CLI capture) and reconsideration assign a rank before the current first ranked Candidate. Reject and acceptance remove it. Candidates with ranks sort by `(rank, UUID)` before unranked Candidates, which retain the previous `(created_at, key)` capture order. Missing ranks remain valid, including in notes authored directly as Markdown; opening and indexing do not write them.
+
+`distraction_rank` is a separate optional schema v1 fractional-indexing key for rejected Candidates. Reject assigns a new top Distractions rank and removes the Inbox rank; Reconsider removes the Distractions rank and assigns a new top Inbox rank. Ranked Distractions sort by `(rank, UUID)` before unranked ones, which sort by descending `rejected_at` and then ordinal `key`. The same rank value can occur in the two sections without a duplicate-rank diagnostic.
+
+Both Candidate rank fields may be omitted, but a present value must be a valid
+fractional-indexing string. An empty or malformed string, a non-string value,
+or YAML `null` makes the note invalid rather than treating it as unranked.
+
+**Move to top** updates one note. In either section, before another actual reorder, its unranked Candidates receive consecutive ranks after the ranked prefix in their existing order, then the requested move is applied. Initialization writes in that order so an interruption leaves the visible sequence unchanged; retry initializes the remaining suffix before moving. Missing-field preconditions are explicit and differ from a present null or changed rank. This adds an optional ordering capability without a schema upgrade.
 
 Entry Review and Distraction Analysis are user-owned Markdown body sections,
 not managed or advisory frontmatter. A future skill may write those sections
@@ -269,12 +280,14 @@ Ranks use Rocicorp fractional-indexing keys and case-sensitive ordinal compariso
 
 | Rank | Owning ordered collection | Active for |
 | --- | --- | --- |
+| `inbox_rank` on Candidate | Single Inbox | Candidate lifecycle `inbox`; optional for existing/directly authored notes |
+| `distraction_rank` on Candidate | Single Distractions collection | Candidate lifecycle `rejected`; optional for existing/directly authored notes |
 | `backlog_rank` on Epic | Single Epic Backlog | Epic lifecycle `backlog` |
 | `backlog_rank` on Story | Single Month Backlog | Story lifecycle `backlog` |
 | `sprint_rank` on Story | One Draft or Active Sprint | Story lifecycle `draft_sprint` or `active_sprint` |
 | `task_rank` on Task | Parent Story | All current Tasks of the Story |
 
-DnD generates a key between the visible neighbors in the owning collection. Bulk repair uses `generateNKeysBetween` to produce evenly spaced keys while preserving `(rank, UUID)` order. One repair action covers the complete owning collection, records the expected old value for every note, and treats an already-written replacement as a safe resume point. A different current value makes the plan stale and stops further writes. Sprint and backlog ranks are deliberately separate; `task_rank` is deliberately shared across Plan and Focus projections.
+DnD generates a key between the neighbors in the owning collection. Bulk repair uses `generateNKeysBetween` to produce evenly spaced keys while preserving `(rank, UUID)` order. One repair action covers all ranked members of the owning collection, records the expected old value for every affected note, and treats an already-written replacement as a safe resume point. For Candidates and Distractions, unranked notes stay untouched in their fallback-ordered suffix; rank repair does not initialize them. A different current value makes the plan stale and stops further writes. Sprint and backlog ranks are deliberately separate; `task_rank` is deliberately shared across Plan and Focus projections.
 
 ## Sprint notes
 

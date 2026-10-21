@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, within, waitFor } from 'storybook/test';
+import { useState } from 'react';
+import { generateNKeysBetween } from 'fractional-indexing';
+import type { ComponentProps } from 'react';
+import type { ProjectedManagedEntity } from '../../application/indexing/work-index';
+import { distractions, inboxCandidates } from '../../domain/inbox-order';
 import { candidate, distraction, epic } from '../../test/storybook/fixtures';
 import { withHostFrame } from '../../test/storybook/host-frames';
 import { InboxView } from './InboxView';
@@ -8,6 +13,12 @@ const meta = {
   title: 'Features/Inbox/InboxView',
   component: InboxView,
   decorators: [withHostFrame('leaf')],
+  beforeEach: async () => {
+    // Viewport changes can deliver resize after setup, closing menus or cancelling keyboard drag.
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+    });
+  },
   args: {
     entities: [candidate, epic],
     onAcceptAsEpic: fn(),
@@ -15,6 +26,9 @@ const meta = {
     onReject: fn(),
     onReconsider: fn(),
     onCreateMission: fn(),
+    onReorder: fn(),
+    onEditCandidate: fn(async () => undefined),
+    dragEnabled: true,
   },
 } satisfies Meta<typeof InboxView>;
 
@@ -27,6 +41,7 @@ export const Loaded: Story = {
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole('button', { name: 'More actions for FF-48' }));
     const menu = body.getByRole('menu');
+    await expect(within(menu).getAllByRole('menuitem')[0]).toHaveAccessibleName('Edit…');
     const itemHeights = within(menu).getAllByRole('menuitem').map((item) => item.getBoundingClientRect().height);
     await expect(Math.max(...itemHeights)).toBeLessThan(100);
   },
@@ -111,7 +126,7 @@ export const ManyTags: Story = {
 };
 
 export const MobileTagPicker: Story = {
-  args: { entities: [...manyTagCandidates.slice(0, 12), epic] },
+  args: { entities: [...manyTagCandidates.slice(0, 12), epic], dragEnabled: false },
   parameters: { viewport: { defaultViewport: 'mobile1' } },
 };
 
@@ -132,7 +147,7 @@ export const NoParentEpic: Story = {
     const canvas = within(canvasElement);
     const body = within(canvasElement.ownerDocument.body);
     await userEvent.click(canvas.getByRole('button', { name: 'More actions for FF-48' }));
-    await expect(body.getByRole('menuitem', { name: 'Accept as Story' })).toBeDisabled();
+    await expect(body.queryByRole('menuitem', { name: 'Accept as Story' })).not.toBeInTheDocument();
   },
 };
 
@@ -200,4 +215,95 @@ export const Pending: Story = { args: { pending: true } };
 export const LongUnbrokenText: Story = {
   args: { entities: [{ ...candidate, title: 'A very long unbroken-reference-identifier-2026-09-04-that-must-wrap' }, epic] },
   parameters: { viewport: { defaultViewport: 'mobile1' } },
+};
+
+const orderingCandidates = [candidate, {
+  ...candidate, id: '01994770-0000-7000-8000-000000000002', key: 'FF-49', title: 'Review the next idea',
+}, {
+  ...candidate, id: '01994770-0000-7000-8000-000000000003', key: 'FF-50', title: 'Keep another intention',
+}];
+
+function InboxOrderingPreview(args: ComponentProps<typeof InboxView>) {
+  const [entities, setEntities] = useState(args.entities);
+  return <InboxView {...args} entities={entities} onReorder={(id, targetIndex) => {
+    args.onReorder?.(id, targetIndex);
+    setEntities((current) => {
+      const ordered: Extract<ProjectedManagedEntity, { type: 'candidate' }>[] = args.section === 'distractions' ? distractions(current) : inboxCandidates(current);
+      const [moving] = ordered.splice(ordered.findIndex((item) => item.id === id), 1);
+      ordered.splice(targetIndex, 0, moving!);
+      const ranks = generateNKeysBetween(null, null, ordered.length);
+      const ranksById = new Map(ordered.map((item, index) => [item.id, ranks[index]!]));
+      return current.map((item) => {
+        const rank = ranksById.get(item.id);
+        if (rank === undefined || item.type !== 'candidate') return item;
+        return item.lifecycle === 'inbox' ? { ...item, inboxRank: rank } : { ...item, distractionRank: rank };
+      });
+    });
+  }} />;
+}
+
+export const KeyboardReorder: Story = {
+  args: { entities: orderingCandidates },
+  render: (args) => <InboxOrderingPreview {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const handle = canvas.getByRole('button', { name: 'Drag FF-49 Review the next idea' });
+    handle.focus();
+    await userEvent.keyboard('[Space]');
+    await waitFor(() => expect(handle.closest('li')).toHaveAttribute('data-dragging', 'true'));
+    await userEvent.keyboard('[ArrowUp]');
+    await waitFor(() => expect(canvas.getAllByRole('heading', { level: 2 })[0]).toHaveAccessibleName('Review the next idea'));
+    await userEvent.keyboard('[Space]');
+    await waitFor(() => expect(args.onReorder).toHaveBeenCalledWith(orderingCandidates[1]!.id, 0));
+    await waitFor(() => expect(canvas.getAllByRole('heading', { level: 2 })[0]).toHaveAccessibleName('Review the next idea'));
+  },
+};
+
+export const PointerReorder: Story = {
+  args: { entities: orderingCandidates },
+  render: (args) => <InboxOrderingPreview {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const handle = canvas.getByRole('button', { name: 'Drag FF-49 Review the next idea' });
+    const target = canvas.getByRole('heading', { name: candidate.title }).closest('li')!;
+    const from = handle.getBoundingClientRect();
+    const to = target.getBoundingClientRect();
+    const user = userEvent.setup();
+    await user.pointer({ keys: '[MouseLeft>]', target: handle, coords: { clientX: from.x + from.width / 2, clientY: from.y + from.height / 2 } });
+    await user.pointer({ target, coords: { clientX: to.x + 20, clientY: to.y + 10 } });
+    await new Promise((resolve) => canvasElement.ownerDocument.defaultView!.requestAnimationFrame(() => canvasElement.ownerDocument.defaultView!.requestAnimationFrame(resolve)));
+    await user.pointer({ keys: '[/MouseLeft]', target, coords: { clientX: to.x + 20, clientY: to.y + 10 } });
+    await waitFor(() => expect(args.onReorder).toHaveBeenCalledWith(orderingCandidates[1]!.id, 0));
+    await waitFor(() => expect(canvas.getAllByRole('heading', { level: 2 })[0]).toHaveAccessibleName('Review the next idea'));
+  },
+};
+
+export const MenuOnlyReorder: Story = {
+  args: { entities: orderingCandidates, dragEnabled: false },
+  parameters: { viewport: { defaultViewport: 'mobile1' } },
+  render: (args) => <InboxOrderingPreview {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /^Drag / })).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'More actions for FF-50' }));
+    await userEvent.click(await within(canvasElement.ownerDocument.body).findByRole('menuitem', { name: 'Move to top' }));
+    await waitFor(() => expect(canvas.getAllByRole('heading', { level: 2 })[0]).toHaveAccessibleName('Keep another intention'));
+  },
+};
+
+const orderingDistractions = orderingCandidates.map((item) => ({ ...distraction, id: item.id, key: item.key, title: item.title }));
+
+export const DistractionKeyboardReorder: Story = {
+  ...KeyboardReorder,
+  args: { entities: orderingDistractions, section: 'distractions' },
+};
+
+export const DistractionPointerReorder: Story = {
+  ...PointerReorder,
+  args: { entities: orderingDistractions, section: 'distractions' },
+};
+
+export const DistractionMenuOnlyReorder: Story = {
+  ...MenuOnlyReorder,
+  args: { entities: orderingDistractions, section: 'distractions', dragEnabled: false },
 };

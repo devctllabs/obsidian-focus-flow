@@ -7,6 +7,21 @@ import { AppearanceProvider } from '../appearance/AppearanceRoot';
 import { AppearanceStore } from '../appearance/appearance';
 
 describe('floating surfaces', () => {
+  it('omits unavailable actions and navigates only the remaining menu items', async () => {
+    const user = userEvent.setup();
+    const apply = vi.fn();
+    const { rerender } = render(<ActionMenu label="Actions"><MenuAction disabled>Unavailable</MenuAction><MenuAction>First</MenuAction><MenuAction disabled>Also unavailable</MenuAction><MenuAction onClick={apply}>Second</MenuAction></ActionMenu>);
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    expect(screen.queryByRole('menuitem', { name: 'Unavailable' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Also unavailable')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('menuitem')).toHaveLength(2);
+    await user.keyboard('{ArrowDown}{Enter}');
+    expect(apply).toHaveBeenCalledOnce();
+    rerender(<ActionMenu label="Actions"><MenuAction>Available now</MenuAction></ActionMenu>);
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    expect(screen.getByRole('menuitem', { name: 'Available now' })).toBeVisible();
+  });
+
   it('keeps an open dialog synchronized with the shared accent preview', () => {
     const appearance = new AppearanceStore({ source: 'obsidian' }, vi.fn(async () => undefined));
     render(<AppearanceProvider appearance={appearance}><DialogSurface title="Decision" onClose={vi.fn()}>Content</DialogSurface></AppearanceProvider>);

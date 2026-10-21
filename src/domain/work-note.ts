@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { generateKeyBetween } from 'fractional-indexing';
 import { timestampSchema, uuidV7Schema } from './managed-schema';
 import { findMarkdownHeadings } from './markdown-sections';
 import { readAcceptanceCriteria as acceptanceCriteria } from './acceptance-criteria';
@@ -25,11 +26,13 @@ interface WorkEntityBase {
 interface InboxCandidateEntity extends WorkEntityBase {
   type: 'candidate';
   lifecycle: 'inbox';
+  inboxRank: string | null;
 }
 
 interface RejectedCandidateEntity extends WorkEntityBase {
   type: 'candidate';
   lifecycle: 'rejected';
+  distractionRank: string | null;
   rejectedAt: string;
   rejectionReason: string | null;
 }
@@ -124,13 +127,13 @@ export interface ParentLinkRepairPlan {
   replacementValue: string;
 }
 
-export type RankField = 'backlog_rank' | 'sprint_rank' | 'task_rank';
+export type RankField = 'backlog_rank' | 'sprint_rank' | 'task_rank' | 'inbox_rank' | 'distraction_rank';
 
 interface RankRepairEntry {
   path: string;
   id: string;
   field: RankField;
-  expectedValue: string;
+  expectedValue: string | null;
   replacementValue: string;
 }
 
@@ -247,6 +250,8 @@ const managedEntity = z.discriminatedUnion('type', [
   managedBase.extend({
     type: z.literal('candidate'),
     lifecycle: z.enum(['inbox', 'rejected']),
+    inbox_rank: z.string().refine(isCandidateRank, 'Expected a fractional rank.').optional(),
+    distraction_rank: z.string().refine(isCandidateRank, 'Expected a fractional rank.').optional(),
     rejected_at: timestampSchema.optional(),
     rejection_reason: z.string().min(1).optional(),
   }),
@@ -448,8 +453,8 @@ function projectWorkEntity(managed: ManagedWork, common: WorkEntityBase, body: s
 }
 
 function projectCandidate(managed: ManagedCandidate, common: WorkEntityBase): CandidateEntity {
-  if (managed.lifecycle !== 'rejected') return { ...common, type: 'candidate', lifecycle: 'inbox' };
-  return { ...common, type: 'candidate', lifecycle: 'rejected', rejectedAt: managed.rejected_at!, rejectionReason: managed.rejection_reason ?? null };
+  if (managed.lifecycle !== 'rejected') return { ...common, type: 'candidate', lifecycle: 'inbox', inboxRank: managed.inbox_rank ?? null };
+  return { ...common, type: 'candidate', lifecycle: 'rejected', distractionRank: managed.distraction_rank ?? null, rejectedAt: managed.rejected_at!, rejectionReason: managed.rejection_reason ?? null };
 }
 
 function projectEpic(managed: ManagedEpic, common: WorkEntityBase, body: string): EpicEntity {
@@ -524,4 +529,13 @@ export function parseWorkNote(source: WorkNoteSource): ParseWorkNoteResult {
   };
 
   return { ok: true, entity: projectWorkEntity(managed, common, source.body) };
+}
+
+function isCandidateRank(value: string): boolean {
+  try {
+    generateKeyBetween(value, null);
+    return true;
+  } catch {
+    return false;
+  }
 }
