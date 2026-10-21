@@ -46,9 +46,31 @@ function fixture(frontmatter: Record<string, unknown>) {
 }
 
 describe('ObsidianCandidateTriageWriter', () => {
+  it('removes Inbox rank on rejection while preserving custom properties', async () => {
+    const frontmatter = { focus_flow: { id: candidateId, key: 'FF-41', type: 'candidate', lifecycle: 'inbox', inbox_rank: 'a0', custom: 'keep' } };
+    const context = fixture(frontmatter);
+    const writer = new ObsidianCandidateTriageWriter(context.vault, context.fileManager, () => 'Focus Flow');
+    await writer.apply({ kind: 'reject-candidate', distractionRank: 'a0', path: sourcePath, id: candidateId, key: 'FF-41', title: epicPlan.title, rejectedAt: '2026-10-21T10:00:00Z', rejectionReason: null });
+    expect(frontmatter.focus_flow).not.toHaveProperty('inbox_rank');
+    expect(frontmatter.focus_flow).toMatchObject({ lifecycle: 'rejected', distraction_rank: 'a0', custom: 'keep' });
+  });
+
+  it('assigns the reconsidered position and clears rejection metadata on the same note', async () => {
+    const frontmatter = { focus_flow: { id: candidateId, key: 'FF-41', type: 'candidate', lifecycle: 'rejected', distraction_rank: 'a0', rejected_at: '2026-10-21T10:00:00Z', rejection_reason: 'Later', custom: 'keep' } };
+    const context = fixture(frontmatter);
+    const path = sourcePath.replace('/Inbox/', '/Distractions/');
+    context.files.delete(sourcePath);
+    context.source.path = path;
+    context.files.set(path, context.source);
+    context.frontmatters.set(path, frontmatter);
+    const writer = new ObsidianCandidateTriageWriter(context.vault, context.fileManager, () => 'Focus Flow');
+    await writer.apply({ kind: 'reconsider-candidate', path, id: candidateId, key: 'FF-41', title: epicPlan.title, inboxRank: 'Zz' });
+    expect(frontmatter.focus_flow).toEqual({ id: candidateId, key: 'FF-41', type: 'candidate', lifecycle: 'inbox', inbox_rank: 'Zz', custom: 'keep' });
+  });
+
   it('converts reviewed Epic fields atomically and keeps the Candidate’s original context', async () => {
     const source = Object.assign(new TFile(), { path: sourcePath });
-    let content = `---\n# Keep comment\ntags: [idea]\nfocus_flow:\n  id: ${candidateId}\n  key: FF-41\n  type: candidate\n  lifecycle: inbox\n---\n\n## Description\n\nOriginal\n\n## Entry Review\n\nWANT\n\n## Notes\n\nKeep [[reference]]\n`;
+    let content = `---\n# Keep comment\ntags: [idea]\nfocus_flow:\n  id: ${candidateId}\n  key: FF-41\n  type: candidate\n  lifecycle: inbox\n  inbox_rank: a0\n---\n\n## Description\n\nOriginal\n\n## Entry Review\n\nWANT\n\n## Notes\n\nKeep [[reference]]\n`;
     const vault = { getAbstractFileByPath: vi.fn((path: string) => path === sourcePath ? source : null), createFolder: vi.fn(), process: vi.fn(async (_file: TFile, update: (value: string) => string) => { content = update(content); return content; }) };
     const fileManager = { processFrontMatter: vi.fn(), renameFile: vi.fn() };
     const writer = new ObsidianCandidateTriageWriter(vault, fileManager, () => 'Focus Flow');
@@ -56,6 +78,7 @@ describe('ObsidianCandidateTriageWriter', () => {
     await writer.apply({ ...epicPlan, authoring });
     const properties = parse(content.split('---')[1]!) as { tags: string[]; focus_flow: { type: string } };
     expect(properties.focus_flow.type).toBe('epic');
+    expect(properties.focus_flow).not.toHaveProperty('inbox_rank');
     expect(properties.tags).toEqual(['focus']);
     expect(content).toContain('## Intent\n\n**Direction**');
     expect(content).toContain('## Entry Review\n\nWANT');
@@ -73,6 +96,7 @@ describe('ObsidianCandidateTriageWriter', () => {
         key: 'FF-41',
         type: 'candidate',
         lifecycle: 'inbox',
+        inbox_rank: 'a0',
         created_at: '2026-08-30T08:45:00+04:00',
         custom_managed_extension: 'preserve-me',
       },
@@ -164,6 +188,7 @@ describe('ObsidianCandidateTriageWriter', () => {
     });
     const plan: RejectCandidatePlan = {
       kind: 'reject-candidate',
+      distractionRank: 'a0',
       path: sourcePath,
       id: candidateId,
       key: 'FF-41',
@@ -186,6 +211,7 @@ describe('ObsidianCandidateTriageWriter', () => {
         key: 'FF-41',
         type: 'candidate',
         lifecycle: 'rejected',
+        distraction_rank: plan.distractionRank,
         rejected_at: plan.rejectedAt,
         rejection_reason: plan.rejectionReason,
         custom_managed_extension: 'preserve-me',

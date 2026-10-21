@@ -477,7 +477,7 @@ describe('PlanView Sprint planning', () => {
     expect(screen.getByRole('button', { name: `Add ${available.key} to Active Sprint` })).toBeDisabled();
     expect(screen.getByRole('button', { name: `Return ${selected.key} to Month backlog` })).toBeDisabled();
     await user.click(screen.getByLabelText(`Reorder ${selected.key}`));
-    expect(screen.getByRole('menuitem', { name: `Move to ${secondEpic.key} ${secondEpic.title}` })).toBeDisabled();
+    expect(screen.queryByRole('menuitem', { name: `Move to ${secondEpic.key} ${secondEpic.title}` })).not.toBeInTheDocument();
   });
 
   it('completes or closes a ready Epic and blocks both actions for an active child', async () => {
@@ -525,8 +525,8 @@ describe('PlanView Sprint planning', () => {
     );
     if (screen.queryByRole('button', { name: 'Expand FF-40' })) await user.click(screen.getByRole('button', { name: 'Expand FF-40' }));
     await user.click(screen.getByRole('button', { name: 'Actions for FF-40' }));
-    expect(screen.getByRole('menuitem', { name: 'Complete FF-40' })).toBeDisabled();
-    expect(screen.getByRole('menuitem', { name: 'Close FF-40…' })).toBeDisabled();
+    expect(screen.queryByRole('menuitem', { name: 'Complete FF-40' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Close FF-40…' })).not.toBeInTheDocument();
   });
 
   it('keeps a reloaded terminal Epic out of planning targets', async () => {

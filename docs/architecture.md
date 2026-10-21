@@ -179,6 +179,19 @@ The adapter writes files in plan order, accepts already-applied replacements
 when resuming an interrupted operation, rejects stale values, preserves all
 unmanaged content, and refreshes the index only after the plan succeeds.
 
+Candidate reordering uses `PlanningReorderService` and the same rank writer for
+the independent Inbox and Distractions collections. Moving to the top writes
+one note. Other actual moves first assign missing ranks sequentially after the
+ranked prefix, preserving the current order even if initialization stops partway.
+Retry reads a fresh snapshot and initializes only the remaining suffix before
+moving. This initialization needs no durable recovery marker because every
+completed prefix preserves a consistent visible order. Each write revalidates
+the note UUID, owning Candidate lifecycle, and expected rank; an expected
+missing field differs from YAML `null`. The index refreshes after a Candidate
+reorder attempt, including failure, so subsequent actions see partial progress.
+The [Candidate data contract](./data-model.md#candidate) defines the optional
+schema v1 fields and fallback ordering.
+
 Wrong-folder repair carries the note UUID and canonical typed-folder name, not
 an index-derived root path. The Obsidian adapter resolves the current configured
 root at execution time, rejects a destination collision, revalidates identity,
@@ -350,6 +363,13 @@ sensor. On mobile, `Platform.isDesktopApp` is false and the adapter renders a
 plain list without mounting `DragDropProvider` or `useSortable`; the reorder
 menu remains available.
 
+Candidates and Distractions reuse this adapter and `PlanningReorderService`;
+Plan and Inbox share the four top/up/down/bottom menu actions. Search or tag
+filters render a static Candidate list and hide adjacent moves. Top/bottom
+actions still use positions in the complete current section and retain the
+filters. The sections have independent drag groups and rank ownership;
+Reject and Reconsider remain explicit triage actions.
+
 Title links first reveal an existing Markdown leaf for the same file, otherwise reuse one tracked preview leaf. `Keymap.isModEvent`, middle-click, and `hover-link` events preserve Obsidian's explicit-new-leaf and preview behavior. The surrounding row never impersonates a link.
 
 ## Styling and accessibility
@@ -359,6 +379,7 @@ Title links first reveal an existing Markdown leaf for the same file, otherwise 
 - Use semantic buttons, lists, headings, dialogs, and live regions; never make a draggable container the only interactive control.
 - Keep title links compatible with modifier-click, middle-click, hover previews, and focus visibility.
 - Restore focus after dialogs and menus and announce invalid moves and saved mutations.
+- Shared `MenuAction` omits unavailable entries, including boundary moves and actions blocked while a mutation is pending. Inbox row menus place **Edit…** first when available; ordinary buttons and form controls retain their disabled states.
 - Test light/dark, community themes, high zoom, narrow sidebars, pop-outs, long titles, and mobile.
 
 ## Settings

@@ -3,7 +3,7 @@ import type { WorkIndexSnapshot } from '../indexing/work-index';
 import { CatalogTagRepairService } from './repair-catalog-tag';
 
 const currentCandidate = {
-  id: 'candidate', key: 'FF-1', title: 'Candidate', type: 'candidate' as const, lifecycle: 'inbox' as const,
+  id: 'candidate', key: 'FF-1', title: 'Candidate', type: 'candidate' as const, lifecycle: 'inbox' as const, inboxRank: null,
   createdAt: '2026-09-07T00:00:00Z', tags: ['direct'], effectiveTags: ['direct'], path: 'Inbox/FF-1.md',
 };
 

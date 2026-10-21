@@ -24,7 +24,7 @@ interface IndexedWorkEntity extends IndexedEntity {
 }
 
 interface RankContext {
-  category: 0 | 1 | 2 | 3;
+  category: 0 | 1 | 2 | 3 | 4;
   rank: string;
   collectionLabel: string;
   field: RankField;
@@ -215,6 +215,7 @@ function pathIsInFolder(
 }
 
 function rankContextFor(entity: WorkEntity): RankContext | null {
+  if (entity.type === 'candidate') return candidateRankContext(entity);
   if (entity.type === 'epic' && entity.lifecycle === 'backlog') {
     return {
       category: 0,
@@ -235,6 +236,16 @@ function rankContextFor(entity: WorkEntity): RankContext | null {
   return null;
 }
 
+function candidateRankContext(entity: Extract<WorkEntity, { type: 'candidate' }>): RankContext | null {
+  if (entity.lifecycle === 'rejected' && entity.distractionRank !== null) {
+    return { category: 4, rank: entity.distractionRank, collectionLabel: 'Distractions', field: 'distraction_rank' };
+  }
+  if (entity.lifecycle === 'inbox' && entity.inboxRank !== null) {
+    return { category: 4, rank: entity.inboxRank, collectionLabel: 'the Inbox', field: 'inbox_rank' };
+  }
+  return null;
+}
+
 function storyRankContext(entity: Extract<WorkEntity, { type: 'story' }>): RankContext | null {
   if (entity.lifecycle === 'backlog' && entity.backlogRank !== null) return { category: 1, rank: entity.backlogRank, collectionLabel: 'the Month Backlog', field: 'backlog_rank' };
   const inSprint = entity.lifecycle === 'draft_sprint' || entity.lifecycle === 'active_sprint';
@@ -247,6 +258,7 @@ function duplicateRankDiagnostics(
 ): WorkNoteDiagnostic[] {
   type RankedEntity = IndexedWorkEntity & { rank: string; field: RankField };
   const collections = [
+    new Map<string, RankedEntity[]>(),
     new Map<string, RankedEntity[]>(),
     new Map<string, RankedEntity[]>(),
     new Map<string, RankedEntity[]>(),

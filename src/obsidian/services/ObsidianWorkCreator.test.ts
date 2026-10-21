@@ -8,6 +8,7 @@ import { ObsidianWorkCreator } from './ObsidianWorkCreator';
 
 const candidate: CandidateCreationPlan = {
   kind: 'candidate',
+  inboxRank: 'Zz',
   id: '01994770-0000-7000-8000-000000000001',
   key: 'FF-42',
   title: 'Explore calm / planning',
@@ -58,6 +59,7 @@ focus_flow:
   key: FF-42
   type: candidate
   lifecycle: inbox
+  inbox_rank: Zz
   created_at: "2026-08-30T12:00:00.000Z"
 ---
 

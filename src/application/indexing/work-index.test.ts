@@ -21,6 +21,33 @@ it('projects canonical authoring fields without unrelated Markdown', () => {
   expect(snapshot.entities[0]).toMatchObject({ bodyFields: { Description: 'A **thought**', 'Entry Review': 'WANT', 'Acceptance Criteria': '- [ ] Visible result' } });
 });
 
+it('diagnoses duplicate Inbox ranks without treating legacy Candidates as invalid', () => {
+  const ranked = { ...candidateSource, frontmatter: { focus_flow: { ...candidateSource.frontmatter.focus_flow, inbox_rank: 'a0' } } };
+  const other = { ...ranked, path: 'Focus Flow/Inbox/FF-42 Other.md', frontmatter: { focus_flow: { ...ranked.frontmatter.focus_flow, id: '019946e9-0ef0-7ca3-af0c-ec423d76efee', key: 'FF-42' } } };
+  const legacy = { ...candidateSource, path: 'Focus Flow/Inbox/FF-43 Legacy.md', frontmatter: { focus_flow: { ...candidateSource.frontmatter.focus_flow, id: '019946e9-0ef0-7ca3-af0c-ec423d76efef', key: 'FF-43' } } };
+  const snapshot = buildWorkIndexSnapshot([ranked, other, legacy]);
+  expect(snapshot.entities).toHaveLength(3);
+  expect(snapshot.diagnostics.filter((item) => item.code === 'duplicate-rank')).toHaveLength(2);
+  const repair = snapshot.diagnostics.find((item) => item.repair?.kind === 'rebalance-ranks')?.repair;
+  expect(repair).toMatchObject({ kind: 'rebalance-ranks', collectionLabel: 'the Inbox', entries: [
+    { id: ranked.frontmatter.focus_flow.id, field: 'inbox_rank', expectedValue: 'a0', replacementValue: 'a0' },
+    { id: other.frontmatter.focus_flow.id, field: 'inbox_rank', expectedValue: 'a0', replacementValue: 'a1' },
+  ] });
+});
+
+it('repairs duplicate Distractions ranks independently of the Inbox', () => {
+  const first = { ...candidateSource, path: 'Focus Flow/Distractions/FF-41 First.md', frontmatter: { focus_flow: { ...candidateSource.frontmatter.focus_flow, lifecycle: 'rejected', rejected_at: '2026-09-01T10:00:00Z', distraction_rank: 'a0' } } };
+  const second = { ...first, path: 'Focus Flow/Distractions/FF-42 Second.md', frontmatter: { focus_flow: { ...first.frontmatter.focus_flow, id: '019946e9-0ef0-7ca3-af0c-ec423d76efee', key: 'FF-42' } } };
+  const inbox = { ...candidateSource, path: 'Focus Flow/Inbox/FF-43 Inbox.md', frontmatter: { focus_flow: { ...candidateSource.frontmatter.focus_flow, id: '019946e9-0ef0-7ca3-af0c-ec423d76efef', key: 'FF-43', inbox_rank: 'a0' } } };
+  const snapshot = buildWorkIndexSnapshot([first, second, inbox]);
+  const duplicates = snapshot.diagnostics.filter((item) => item.code === 'duplicate-rank');
+  expect(duplicates).toHaveLength(2);
+  expect(duplicates[0]!.repair).toMatchObject({ kind: 'rebalance-ranks', collectionLabel: 'Distractions', entries: [
+    { id: first.frontmatter.focus_flow.id, field: 'distraction_rank', expectedValue: 'a0', replacementValue: 'a0' },
+    { id: second.frontmatter.focus_flow.id, field: 'distraction_rank', expectedValue: 'a0', replacementValue: 'a1' },
+  ] });
+});
+
 it('rejects a repeated typed folder nested below the workspace root', () => {
   const source = { ...candidateSource, path: 'Focus Flow/Inbox/Other/Inbox/FF-41 Explore weekly focus.md' };
   const snapshot = buildWorkIndexSnapshot([source], { path: 'Focus Flow/MISSION.md', body: 'Focus intentionally.' });

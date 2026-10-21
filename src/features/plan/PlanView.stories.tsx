@@ -142,7 +142,7 @@ export const EpicFinalizationBlocked: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Expand FF-40' }));
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Actions for FF-40' }));
-    await expect(within(canvasElement.ownerDocument.body).getByRole('menuitem', { name: 'Complete FF-40' })).toBeDisabled();
+    await expect(within(canvasElement.ownerDocument.body).queryByRole('menuitem', { name: 'Complete FF-40' })).not.toBeInTheDocument();
   },
 };
 

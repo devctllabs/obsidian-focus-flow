@@ -15,7 +15,7 @@ export function serializeWorkCreationPlan(plan: WorkCreationPlan): string {
   started_at:
   completed_at:
 `
-      : '';
+      : `  inbox_rank: ${plan.inboxRank}\n`;
   return `---
 ${plan.tags?.length ? `tags: ${JSON.stringify(plan.tags)}\n` : ''}\
 focus_flow:

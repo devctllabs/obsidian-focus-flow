@@ -2,6 +2,7 @@ import type {
   ProjectedManagedEntity,
   WorkIndex,
 } from '../indexing/work-index';
+import { inboxCandidates } from '../../domain/inbox-order';
 import { generateKeyBetween } from 'fractional-indexing';
 import { compareRank } from '../../domain/ordering';
 import { evaluateWip, type WipPolicy } from '../../domain/wip-policy';
@@ -24,6 +25,7 @@ export interface WorkTemplateRenderer {
 
 export interface CandidateCreationPlan {
   kind: 'candidate';
+  inboxRank: string;
   id: string;
   key: string;
   title: string;
@@ -134,6 +136,7 @@ export class WorkCreationService {
         : `${rendered.trimEnd()}\n\nSource Sprint: [[${sourceSprint}]]\n`;
     const path = await this.writer.create({
       kind: 'candidate',
+      inboxRank: generateKeyBetween(null, inboxCandidates(snapshot.entities)[0]?.inboxRank ?? null),
       id: this.nextId(),
       key,
       title,

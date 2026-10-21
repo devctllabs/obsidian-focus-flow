@@ -1,3 +1,4 @@
+import { distractions, inboxCandidates } from '../../domain/inbox-order';
 import { generateKeyBetween } from 'fractional-indexing';
 import { compareRank } from '../../domain/ordering';
 import { sameBodyFields, type WorkBodyFields } from './work-body-fields';
@@ -37,6 +38,7 @@ export interface AcceptCandidateAsStoryPlan {
 
 export interface RejectCandidatePlan {
   kind: 'reject-candidate';
+  distractionRank: string;
   path: string;
   id: string;
   key: string;
@@ -47,6 +49,7 @@ export interface RejectCandidatePlan {
 
 interface ReconsiderCandidatePlan {
   kind: 'reconsider-candidate';
+  inboxRank: string;
   path: string;
   id: string;
   key: string;
@@ -143,6 +146,7 @@ export class CandidateTriageService {
       const normalizedReason = reason?.trim() || null;
       const path = await this.writer.apply({
         kind: 'reject-candidate',
+        distractionRank: generateKeyBetween(null, distractions(snapshot.entities)[0]?.distractionRank ?? null),
         path: candidate.path,
         id: candidate.id,
         key: candidate.key,
@@ -161,6 +165,7 @@ export class CandidateTriageService {
       const candidate = uniqueRejectedCandidate(snapshot.entities, candidateId);
       const path = await this.writer.apply({
         kind: 'reconsider-candidate',
+        inboxRank: generateKeyBetween(null, inboxCandidates(snapshot.entities)[0]?.inboxRank ?? null),
         path: candidate.path,
         id: candidate.id,
         key: candidate.key,

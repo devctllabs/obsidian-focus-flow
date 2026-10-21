@@ -1,4 +1,5 @@
-import { generateKeyBetween } from 'fractional-indexing';
+import { generateKeyBetween, generateNKeysBetween } from 'fractional-indexing';
+import { distractions, inboxCandidates } from '../../domain/inbox-order';
 import type {
   ProjectedManagedEntity,
   WorkIndex,
@@ -20,6 +21,12 @@ interface ReorderCollection {
   items: RankedItem[];
 }
 
+interface CandidateReorderCollection {
+  label: string;
+  field: 'inbox_rank' | 'distraction_rank';
+  items: { id: string; path: string; rank: string | null }[];
+}
+
 export class PlanningReorderService {
   private tail: Promise<void> = Promise.resolve();
 
@@ -39,6 +46,10 @@ export class PlanningReorderService {
     const snapshot = this.index.getSnapshot();
     if (snapshot.phase !== 'ready') throw new Error('Focus Flow index must be ready before reordering.');
     const entity = uniqueEntity(snapshot.entities, entityId);
+    if (entity.type === 'candidate') {
+      await this.reorderCandidates(candidateCollection(snapshot, entity.lifecycle), entityId, targetIndex);
+      return;
+    }
     const collection = collectionFor(snapshot, entity);
     const sourceIndex = collection.items.findIndex((item) => item.id === entityId);
     assertReorderTarget(sourceIndex, targetIndex, collection.items.length);
@@ -46,6 +57,36 @@ export class PlanningReorderService {
     const plan = reorderPlan(collection, sourceIndex, targetIndex);
     await this.writer.rebalanceRanks(plan);
     await this.index.refresh();
+  }
+
+  private async reorderCandidates(collection: CandidateReorderCollection, entityId: string, targetIndex: number): Promise<void> {
+    const sourceIndex = collection.items.findIndex((item) => item.id === entityId);
+    assertReorderTarget(sourceIndex, targetIndex, collection.items.length);
+    if (sourceIndex === targetIndex) return;
+    try {
+      if (targetIndex === 0) {
+        const moving = collection.items[sourceIndex]!;
+        await this.writer.rebalanceRanks({ kind: 'rebalance-ranks', collectionLabel: collection.label, entries: [{
+          path: moving.path, id: moving.id, field: collection.field, expectedValue: moving.rank,
+          replacementValue: generateKeyBetween(null, collection.items[0]!.rank),
+        }] });
+      } else {
+        const ranked = await this.initializeCandidateRanks(collection);
+        await this.writer.rebalanceRanks(reorderPlan(ranked, sourceIndex, targetIndex));
+      }
+    } finally {
+      await this.index.refresh();
+    }
+  }
+
+  private async initializeCandidateRanks(collection: CandidateReorderCollection): Promise<ReorderCollection> {
+    const ranked = collection.items.filter((item) => item.rank !== null);
+    const missing = collection.items.filter((item) => item.rank === null);
+    const ranks = generateNKeysBetween(ranked.at(-1)?.rank ?? null, null, missing.length);
+    const entries = missing.map((item, index) => ({ path: item.path, id: item.id, field: collection.field, expectedValue: null, replacementValue: ranks[index]! }));
+    if (entries.length > 0) await this.writer.rebalanceRanks({ kind: 'rebalance-ranks', collectionLabel: collection.label, entries });
+    const replacements = new Map(entries.map((entry) => [entry.id, entry.replacementValue]));
+    return { ...collection, items: collection.items.map((item) => rankedItem(item, item.rank ?? replacements.get(item.id)!)) };
   }
 }
 
@@ -81,6 +122,11 @@ function collectionFor(
   if (entity.type === 'story' && sprintStoryIsRanked(entity)) return sprintCollection(snapshot, entity);
   if (entity.type === 'task') return taskCollection(snapshot, entity);
   throw new Error('Work item cannot be reordered in Plan.');
+}
+
+function candidateCollection(snapshot: WorkIndexSnapshot, lifecycle: 'inbox' | 'rejected'): CandidateReorderCollection {
+  if (lifecycle === 'inbox') return { label: 'the Inbox', field: 'inbox_rank', items: inboxCandidates(snapshot.entities).map((item) => ({ id: item.id, path: item.path, rank: item.inboxRank ?? null })) };
+  return { label: 'Distractions', field: 'distraction_rank', items: distractions(snapshot.entities).map((item) => ({ id: item.id, path: item.path, rank: item.distractionRank ?? null })) };
 }
 
 function epicCollection(snapshot: WorkIndexSnapshot): ReorderCollection {

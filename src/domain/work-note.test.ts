@@ -2,6 +2,32 @@ import { describe, expect, it } from 'vitest';
 import { parseWorkNote } from './work-note';
 
 describe('parseWorkNote', () => {
+  it.each([undefined, 'a0', 'Zz'])('reads an optional Distraction rank %s in schema v1', (rank) => {
+    expect(parseWorkNote({ path: 'Distractions/FF-1 Idea.md', body: '', frontmatter: { focus_flow: {
+      schema_version: 1, id: '019946e9-0ef0-7ca3-af0c-ec423d76efed', key: 'FF-1', type: 'candidate', lifecycle: 'rejected', created_at: '2026-09-01T10:00:00Z', rejected_at: '2026-09-02T10:00:00Z', ...(rank === undefined ? {} : { distraction_rank: rank }),
+    } } })).toMatchObject({ ok: true, entity: { distractionRank: rank ?? null } });
+  });
+
+  it('rejects a malformed present Distraction rank', () => {
+    expect(parseWorkNote({ path: 'Distractions/FF-1 Idea.md', body: '', frontmatter: { focus_flow: {
+      schema_version: 1, id: '019946e9-0ef0-7ca3-af0c-ec423d76efed', key: 'FF-1', type: 'candidate', lifecycle: 'rejected', created_at: '2026-09-01T10:00:00Z', rejected_at: '2026-09-02T10:00:00Z', distraction_rank: 'invalid',
+    } } }).ok).toBe(false);
+  });
+
+  it.each([undefined, 'a0', 'Zz'])('reads optional v1 Inbox rank %s', (rank) => {
+    const result = parseWorkNote({ path: 'Inbox/FF-1 Idea.md', body: '', frontmatter: { focus_flow: {
+      schema_version: 1, id: '019946e9-0ef0-7ca3-af0c-ec423d76efed', key: 'FF-1', type: 'candidate', lifecycle: 'inbox', created_at: '2026-09-01T10:00:00Z', ...(rank === undefined ? {} : { inbox_rank: rank }),
+    } } });
+    expect(result).toMatchObject({ ok: true, entity: { inboxRank: rank ?? null } });
+  });
+
+  it.each(['', 'not-a-rank', 3, null])('rejects a malformed present Inbox rank %s', (rank) => {
+    expect(parseWorkNote({ path: 'Inbox/FF-1 Idea.md', body: '', frontmatter: { focus_flow: {
+      schema_version: 1, id: '019946e9-0ef0-7ca3-af0c-ec423d76efed', key: 'FF-1', type: 'candidate', lifecycle: 'inbox', created_at: '2026-09-01T10:00:00Z', inbox_rank: rank,
+    } } }).ok).toBe(false);
+  });
+
+
   it('keeps accepted Stories in their Epic until explicitly selected for Month', () => {
     const focus_flow = { schema_version: 1, id: '019946f1-8d2a-7f05-87b1-1eebbb476300', key: 'FF-42', type: 'story', lifecycle: 'epic_backlog', epic_id: '019946c9-5f97-7196-8483-73469275ff90', epic_link: '[[Epic]]', created_at: '2026-09-05T10:00:00Z' };
     const source = { path: 'Focus Flow/Stories/FF-42 Later outcome.md', frontmatter: { focus_flow }, body: '## Description\n\nA later outcome' };
@@ -31,6 +57,7 @@ describe('parseWorkNote', () => {
         key: 'FF-41',
         type: 'candidate',
         lifecycle: 'inbox',
+        inboxRank: null,
         title: 'Explore a weekly focus flow',
         createdAt: '2026-08-30T08:45:00+04:00',
         tags: [],
@@ -63,6 +90,7 @@ describe('parseWorkNote', () => {
         key: 'FF-41',
         type: 'candidate',
         lifecycle: 'rejected',
+        distractionRank: null,
         title: 'Chase a visible metric',
         createdAt: '2026-08-30T08:45:00+04:00',
         tags: [],

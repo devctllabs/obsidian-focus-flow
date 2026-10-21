@@ -1,3 +1,4 @@
+import { reorderActionsFor, type ReorderProps } from '../planning/reorder-actions';
 import type { CreateTaskResult } from '../../application/work/create-work';
 import type { TaskCreationDetails } from '../../application/work/create-work';
 import { TaskFieldsEditor } from '../work/TaskFieldsEditor';
@@ -739,29 +740,8 @@ function TaskList({
   );
 }
 
-interface ReorderProps {
-  item: Epic | Story | Task;
-  index: number;
-  length: number;
-  onReorder?: PlanViewProps['onReorder'];
-  disabled: boolean;
-}
-
 function ReorderMenu({ children, ...props }: ReorderProps & { children?: ReactNode }) {
   return <ActionMenu label={`Reorder ${props.item.key}`}>{children}{reorderActionsFor(props)}</ActionMenu>;
-}
-
-function reorderActionsFor({ item, index, length, onReorder, disabled }: ReorderProps) {
-  const move = (target: number) => {
-    if (target !== index) onReorder?.(item.id, target);
-  };
-  const unavailable = disabled || onReorder === undefined;
-  return <>
-    <MenuAction disabled={unavailable || index === 0} onClick={() => move(0)}>Move to top</MenuAction>
-    <MenuAction disabled={unavailable || index === 0} onClick={() => move(index - 1)}>Move up</MenuAction>
-    <MenuAction disabled={unavailable || index === length - 1} onClick={() => move(index + 1)}>Move down</MenuAction>
-    <MenuAction disabled={unavailable || index === length - 1} onClick={() => move(length - 1)}>Move to bottom</MenuAction>
-  </>;
 }
 
 function dragItems(items: readonly (Epic | Story | Task)[]): BoardDragItem[] {

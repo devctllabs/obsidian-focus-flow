@@ -78,6 +78,8 @@ export class ObsidianCandidateTriageWriter implements CandidateTriageWriter {
       if ((!sameBodyFields(readBodyFields(body), authoring.expected.bodyFields) && !sameBodyFields(readBodyFields(body), authoring.bodyFields)) || (JSON.stringify(tags) !== JSON.stringify([...authoring.expected.tags].sort()) && JSON.stringify(tags) !== JSON.stringify([...desiredTags].sort()))) throw new Error('Candidate changed. Reopen the form to load its latest fields.');
       updateProperties(frontmatter);
       const managed = frontmatter.focus_flow as Record<string, unknown>;
+      document.deleteIn(['focus_flow', 'inbox_rank']);
+      document.deleteIn(['focus_flow', 'distraction_rank']);
       for (const [key, value] of Object.entries(managed)) document.setIn(['focus_flow', key], value);
       document.set('tags', desiredTags);
       const eol = content.includes('\r\n') ? '\r\n' : '\n';
@@ -145,12 +147,15 @@ function applyPlan(
   managed: Record<string, unknown>,
   plan: CandidateTriagePlan,
 ): void {
+  delete managed.distraction_rank;
   if (plan.kind === 'reconsider-candidate') {
     managed.lifecycle = 'inbox';
+    managed.inbox_rank = plan.inboxRank;
     delete managed.rejected_at;
     delete managed.rejection_reason;
     return;
   }
+  delete managed.inbox_rank;
   if (plan.kind === 'accept-candidate-as-epic') {
     managed.type = 'epic';
     managed.lifecycle = 'backlog';
@@ -164,6 +169,7 @@ function applyPlan(
     else managed.backlog_rank = plan.backlogRank;
   } else {
     managed.lifecycle = 'rejected';
+    managed.distraction_rank = plan.distractionRank;
     managed.rejected_at = plan.rejectedAt;
     if (plan.rejectionReason === null) {
       delete managed.rejection_reason;

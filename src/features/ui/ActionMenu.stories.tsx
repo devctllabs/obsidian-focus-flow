@@ -23,7 +23,7 @@ export const Open: Story = {
   },
 };
 
-export const DisabledAndDestructiveActions: Story = {
+export const UnavailableActionsHidden: Story = {
   args: {
     children: <><MenuAction disabled>Unavailable</MenuAction><MenuAction destructive>Delete note</MenuAction></>,
   },
@@ -31,7 +31,7 @@ export const DisabledAndDestructiveActions: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'More actions' }));
     const menu = within(canvasElement.ownerDocument.body).getByRole('menu');
-    await expect(within(menu).getByRole('menuitem', { name: 'Unavailable' })).toBeDisabled();
+    await expect(within(menu).queryByRole('menuitem', { name: 'Unavailable' })).not.toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
   },
 };

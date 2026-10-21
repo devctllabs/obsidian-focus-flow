@@ -26,6 +26,40 @@ const plan: RankRepairPlan = {
 };
 
 describe('ObsidianRankWriter', () => {
+  it.each(['inbox', 'rejected'] as const)('allows Distraction rank writes only in the rejected lifecycle: %s', async (lifecycle) => {
+    const file = Object.assign(new TFile(), { path: 'Distractions/FF-1 Idea.md' });
+    const frontmatter = { focus_flow: { id: 'candidate', type: 'candidate', lifecycle } };
+    const writer = new ObsidianRankWriter({ getAbstractFileByPath: () => file }, { processFrontMatter: async (_file, update) => { update(frontmatter); } });
+    const operation = writer.rebalanceRanks({ kind: 'rebalance-ranks', collectionLabel: 'Distractions', entries: [{ path: file.path, id: 'candidate', field: 'distraction_rank', expectedValue: null, replacementValue: 'a0' }] });
+    if (lifecycle === 'rejected') {
+      await operation;
+      expect(frontmatter.focus_flow).toHaveProperty('distraction_rank', 'a0');
+    } else await expect(operation).rejects.toThrow('changed before rank repair');
+  });
+
+  it.each([
+    { managed: { type: 'candidate', lifecycle: 'inbox' }, succeeds: true },
+    { managed: { type: 'candidate', lifecycle: 'inbox', inbox_rank: 'a0' }, succeeds: true },
+    { managed: { type: 'candidate', lifecycle: 'inbox', inbox_rank: 'a1' }, succeeds: false },
+    { managed: { type: 'candidate', lifecycle: 'inbox', inbox_rank: null }, succeeds: false },
+    { managed: { type: 'candidate', lifecycle: 'rejected' }, succeeds: false },
+    { managed: { type: 'epic', lifecycle: 'backlog' }, succeeds: false },
+  ])('initializes absent Inbox ranks safely: $managed', async ({ managed, succeeds }) => {
+    const file = Object.assign(new TFile(), { path: 'Inbox/FF-1 Idea.md' });
+    const frontmatter = { focus_flow: { id: 'candidate', ...managed } };
+    const writer = new ObsidianRankWriter({ getAbstractFileByPath: () => file }, {
+      processFrontMatter: async (_file, update) => { update(frontmatter); },
+    });
+    const operation = writer.rebalanceRanks({ kind: 'rebalance-ranks', collectionLabel: 'the Inbox', entries: [{ path: file.path, id: 'candidate', field: 'inbox_rank', expectedValue: null, replacementValue: 'a0' }] });
+    if (succeeds) {
+      await operation;
+      expect(frontmatter.focus_flow).toHaveProperty('inbox_rank', 'a0');
+    } else {
+      await expect(operation).rejects.toThrow('changed before rank repair');
+      expect(frontmatter.focus_flow).toEqual({ id: 'candidate', ...managed });
+    }
+  });
+
   it('revalidates each note and changes only its planned rank field', async () => {
     const files = new Map(
       plan.entries.map((entry) => [
