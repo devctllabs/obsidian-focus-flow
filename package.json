@@ -53,10 +53,10 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@dnd-kit/react": "^0.5.0",
+    "@dnd-kit/react": "^0.5.1",
     "fractional-indexing": "^4.0.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "uuid": "^14.0.3",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
