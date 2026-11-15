@@ -61,8 +61,8 @@ focus-flow check --vault "/path/to/vault" --json
 
 The CLI runs locally without network requests and reads the Focus Flow settings
 from the supplied Obsidian vault. The optional agent skill remains source-only
-under `skills/focus-flow/`; copy that complete directory separately into the
-skill directory used by your agent.
+and is explicitly invoked as `$focus-flow`; copy that complete directory
+separately into the skill directory used by your agent.
 
 ## Development
 

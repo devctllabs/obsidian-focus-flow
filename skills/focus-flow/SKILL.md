@@ -1,6 +1,7 @@
 ---
 name: focus-flow
-description: Author or revise Candidate, Epic, Story, and Task bodies and Cataloged Tags in a Focus Flow Workspace, run Entry Reviews, create Candidates or Tasks through the focus-flow CLI, or check Workspace consistency. Use only for Focus Flow work notes; lifecycle, status, Sprint, and repair actions stay in the Obsidian plugin.
+description: Author and revise Focus Flow work notes, run Entry Reviews, create Candidates or Tasks through the focus-flow CLI, and check Workspace consistency. Lifecycle, status, Sprint, and repair actions stay in the Obsidian plugin.
+disable-model-invocation: true
 ---
 
 # Focus Flow authoring
