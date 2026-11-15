@@ -99,7 +99,7 @@ async function verifyDistractionOrdering(dragEnabled: boolean): Promise<void> {
 async function clearSearch(): Promise<void> {
   const search = browser.$('.focus-flow__inbox input[type="search"]');
   await search.click();
-  await browser.keys(['Control', 'a']);
+  await browser.keys([process.platform === 'darwin' ? 'Meta' : 'Control', 'a']);
   await browser.keys('Backspace');
   await expect(search).toHaveValue('');
 }

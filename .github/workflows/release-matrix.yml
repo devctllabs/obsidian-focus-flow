@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - app-version: latest
-            installer-version: latest
+          - app-version: 1.14.5
+            installer-version: 1.14.5
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
