@@ -30,6 +30,10 @@ async function clickButton(selector: string): Promise<void> {
   }, selector);
 }
 
+async function waitForWorkflowIdle(): Promise<void> {
+  await browser.$('[aria-label="Refresh notes"]').waitForEnabled({ timeout: 10_000 });
+}
+
 async function waitForCatalogStatus(message: string): Promise<void> {
   await browser.waitUntil(
     () => browser.execute((expected) =>
@@ -69,10 +73,12 @@ async function clickMenuAction(label: string): Promise<void> {
 }
 
 async function moveTask(key: string, destination: string, source: string): Promise<void> {
+  await waitForWorkflowIdle();
   const picker = browser.$('[aria-label="Task column"]');
   if (await picker.isExisting()) await picker.selectByAttribute('value', source);
   await clickButton(`[aria-label="More actions for ${key}"]`);
   await clickMenuAction(`Move to ${destination}`);
+  await waitForWorkflowIdle();
 }
 
 async function computedControlStyles(selector: string) {
@@ -926,7 +932,10 @@ describe('Focus Flow lifecycle', () => {
     let addedTaskPath = '';
     await browser.executeObsidianCommand('focus-flow:open-focus');
 
-    await browser.$('[aria-label="Create Task for FF-42"]').click();
+    await waitForWorkflowIdle();
+    const createTask = browser.$('[aria-label="Create Task for FF-42"]');
+    await createTask.waitForClickable();
+    await createTask.click();
     const newTask = browser.$('[aria-label="New Task"]');
     await newTask.waitForEnabled();
     await newTask.setValue('Test narrow Focus board');
@@ -947,6 +956,7 @@ describe('Focus Flow lifecycle', () => {
     expect(addedTask).toContain('status: todo');
     const addedTaskKey = addedTask.match(/\n  key: (FF-\d+)\n/)?.[1];
     expect(addedTaskKey).toBeTruthy();
+    await waitForWorkflowIdle();
 
     await moveTask('FF-4', 'Today', 'todo');
     await browser.waitUntil(async () =>
@@ -992,6 +1002,7 @@ describe('Focus Flow lifecycle', () => {
     await browser.waitUntil(async () =>
       (await readVaultFile(addedTaskPath)).includes('status: in_progress'),
     );
+    await waitForWorkflowIdle();
     expect(await readVaultFile(addedTaskPath)).toMatch(
       /\n  started_at: \d{4}-\d{2}-\d{2}T/,
     );
@@ -999,7 +1010,8 @@ describe('Focus Flow lifecycle', () => {
 
   it('edits Task fields from Focus and reopens them in Plan without changing workflow state', async () => {
     await browser.executeObsidianCommand('focus-flow:open-focus');
-    let addedTaskPath = await browser.executeObsidian(({ app }) => app.vault.getMarkdownFiles().find((file) => file.path.endsWith(' Test narrow Focus board.md'))!.path);
+    let addedTaskPath = await browser.executeObsidian(({ app }) => app.vault.getMarkdownFiles().find((file) => file.path.endsWith(' Test narrow Focus board.md'))?.path ?? '');
+    expect(addedTaskPath).not.toBe('');
     const addedTaskKey = addedTaskPath.split('/').at(-1)!.split(' ')[0]!;
     const before = await readVaultFile(addedTaskPath);
     const properties = await browser.executeObsidian(({ obsidian }, content) => obsidian.parseYaml(content.split('---')[1]!) as { focus_flow: Record<string, unknown> }, before);
@@ -1019,6 +1031,7 @@ describe('Focus Flow lifecycle', () => {
     await browser.$('[role="dialog"]').waitForExist({ reverse: true });
     const editedPath = `Focus Flow/Tasks/${addedTaskKey} Verify a calmer Task editor.md`;
     await browser.waitUntil(async () => (await readVaultFile(editedPath)).includes('- [ ] Works with keyboard\n  - And touch'));
+    await waitForWorkflowIdle();
     const saved = await readVaultFile(editedPath);
     const afterProperties = await browser.executeObsidian(({ obsidian }, content) => obsidian.parseYaml(content.split('---')[1]!) as { focus_flow: Record<string, unknown>; tags: string[] }, saved);
     expect(afterProperties.focus_flow).toEqual(properties.focus_flow);
@@ -1037,6 +1050,7 @@ describe('Focus Flow lifecycle', () => {
     await browser.$('[role="dialog"]').waitForExist({ reverse: true });
     addedTaskPath = `Focus Flow/Tasks/${addedTaskKey} Test narrow Focus board.md`;
     await browser.waitUntil(async () => (await readVaultFile(addedTaskPath)).includes('Keep **Markdown** context.'));
+    await waitForWorkflowIdle();
   });
 
   it('edits typed Story criteria in Focus and defers the change to the Sprint Delta', async () => {
@@ -1047,6 +1061,7 @@ describe('Focus Flow lifecycle', () => {
     await browser.$('[aria-label="Criterion 1"]').setValue('Weekly priorities remain visible on narrow screens');
     await browser.$('button=Save changes').click();
     await browser.waitUntil(async () => (await readVaultFile(storyPath)).includes('Weekly priorities remain visible on narrow screens'));
+    await waitForWorkflowIdle();
     await expect(browser.$('[aria-label="Create Task for FF-42"]')).toExist();
   });
 
@@ -1077,11 +1092,13 @@ describe('Focus Flow lifecycle', () => {
         'acceptance_exception_reason: The narrow-screen wording remains provisional',
       ),
     );
+    await waitForWorkflowIdle();
 
     await browser.$('[aria-label="Review FF-46"]').click();
     await browser.$('[aria-label="Outcome for FF-46"] button[data-outcome="not_achieved"]').click();
     await expect(browser.$('[aria-label="Reflection for FF-46"]')).toHaveValue('');
     await clickButton('[aria-label="Save evaluation for FF-46"]');
+    await waitForWorkflowIdle();
     const monthPosition = browser.$('[aria-label="Month position for FF-46"]');
     await monthPosition.waitForExist();
     await monthPosition.selectByAttribute('value', '__end__');
@@ -1102,6 +1119,10 @@ describe('Focus Flow lifecycle', () => {
     await parentEpic.waitForExist();
     const firstEpicValue = await parentEpic.$('option:nth-child(2)').getAttribute('value');
     await parentEpic.selectByAttribute('value', firstEpicValue!);
+    await browser.waitUntil(
+      () => browser.execute(() => document.querySelectorAll<HTMLSelectElement>('[aria-label^="Resolution for "]').length >= 2),
+      { timeoutMsg: 'Expected a resolution control for the created Task.' },
+    );
     await browser.execute(() => {
       const resolutions = Array.from(
         document.querySelectorAll<HTMLSelectElement>(
@@ -1134,6 +1155,7 @@ describe('Focus Flow lifecycle', () => {
     await browser.waitUntil(async () =>
       /pending_close:\s+operation_id:/.test(await readVaultFile(sprintPath)),
     );
+    await waitForWorkflowIdle();
     const obsidianPage = browser.getObsidianPage();
     await obsidianPage.disablePlugin('focus-flow');
     await obsidianPage.enablePlugin('focus-flow');
@@ -1147,6 +1169,7 @@ describe('Focus Flow lifecycle', () => {
     await browser.waitUntil(async () =>
       /^  lifecycle: closed$/m.test(await readVaultFile(archivedSprintPath)),
     );
+    await waitForWorkflowIdle();
     await browser.$('.focus-flow__history').waitForExist();
 
     const promotedStoryPath = reclassifiedTaskPath.replace('/Tasks/', '/Stories/');
@@ -1222,6 +1245,7 @@ describe('Focus Flow lifecycle', () => {
     expect(await readVaultFile(candidatePath)).toContain(
       'Source Sprint: [[SPR-001]]',
     );
+    await waitForWorkflowIdle();
   });
 
   it('mounts and disposes a Focus root in a pop-out leaf', async () => {
