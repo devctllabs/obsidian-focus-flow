@@ -53,7 +53,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@dnd-kit/react": "^0.5.1",
+    "@dnd-kit/react": "^0.5.3",
     "fractional-indexing": "^4.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
